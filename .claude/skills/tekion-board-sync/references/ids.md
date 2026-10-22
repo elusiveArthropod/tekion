@@ -160,3 +160,12 @@ Confirmation list (their "resolved" closes a ticket): Jaimin Prajapati, Harsh Ba
 | Dhruv Goti | - | U087SC35SGH | agents BE lead |
 | Thanusree | - | U07BRT1Q65P | connectors |
 | Harshverdhan Swami | - | U06FL2TP57D | connectors |
+| Shrey Bavishi | 511449 | U0A6KS8SC6P | BE |
+| Kishansinh Puvar | 511365 | U0A6ARHMTV5 | knowledge/indexing BE |
+| Zeel Boghara | 511337 | U0A6VSW7V6Y | connectors BE |
+| Abhinav Poddar | 511625 | U072TQVJRKQ | sandbox/skills BE |
+| Josh Ujwal Immadisetty | 511554 | U078DBE55V1 | BE |
+| Prakhar Chaturvedi | 511558 | U06PHUNM0UQ | code app builder lead |
+| Utsav Kanani | 511448 | U0A75U0DHFB | agents BE |
+| Rishi Patel | 511475 | U0A6R15DVSA | text-to-config BE |
+| Keyur Govrani | 511633 | U087D9FUJJE | FE (dup row ok) |
