@@ -1,0 +1,102 @@
+# Ids for the Tekion board sync
+
+Verified against atlas.unifyapps.com on 22 Oct 2026. Re-fetch with `fetch_statuses`, `fetch_custom_fields` and `fetch_users` if anything looks off.
+
+## Slack
+
+- Channel `#tekion-delivery`: `C0A1EPNSLJ1`
+- Thread URL: `https://unifyapps.slack.com/archives/C0A1EPNSLJ1/p<ts without the dot>`
+
+## Atlas
+
+- Team Tekion Tasks (TEK): `2604063610`
+- Project Tekion: `8118998788`
+- Other boards, read only: DT (AO) `3781554875`, AI Agents (AI) `2808445654`, Enterprise Brain (EB) `2702924697`
+
+## Statuses (TEK), in board order
+
+| Name | Category | Id |
+|---|---|---|
+| Backlog | backlog | `e_6aa2b2d635cc1f4f3c87663e` |
+| Research | unstarted | `e_6aa2b2d635cc1f4f3c87663f` |
+| Design Todo | unstarted | `e_6aa2b2d635cc1f4f3c876640` |
+| Dev Todo (default) | unstarted | `e_6aa2b2d635cc1f4f3c876641` |
+| Awaiting Customer | unstarted | `e_6aa2b2d66838a7063627a91b` |
+| In Design | started | `e_6aa2b2d635cc1f4f3c876642` |
+| Design Review | started | `e_6aa2b2d66838a7063627a914` |
+| In Dev | started | `e_6aa2b2d66838a7063627a915` |
+| Dev Testing | started | `e_6aa2b2d635cc1f4f3c876643` |
+| Dev Review | started | `e_6aa2b2d66838a7063627a916` |
+| Dev Blocked | started | `e_6aa2b2d635cc1f4f3c876644` |
+| QA Blocked | started | `e_6aa2b2d635cc1f4f3c876645` |
+| QA Rejected | started | `e_6aa2b2d635cc1f4f3c876646` |
+| UAT Rejected | started | `e_6aa2b2d635cc1f4f3c876647` |
+| In QA | completed | `e_6aa2b2d66838a7063627a917` |
+| In UAT | completed | `e_6aa2b2d635cc1f4f3c876648` |
+| Ready to Release | completed | `e_6aa2b2d635cc1f4f3c876649` |
+| Done | completed | `e_6aa2b2d66838a7063627a918` |
+| Canceled | canceled | `e_6aa2b2d66838a7063627a919` |
+| Duplicate | canceled | `e_6aa2b2d66838a7063627a91a` |
+
+Status keys for the `statusKey IN` filter: `backlog research design_todo dev_todo awaiting_customer in_design design_review in_dev dev_testing dev_review dev_blocked qa_blocked qa_rejected uat_rejected in_qa in_uat ready_to_release done canceled duplicate`.
+
+## Custom fields
+
+| Field | Id | Values |
+|---|---|---|
+| Type (workspace, single) | `e_f15bd1be633fc74e8194fe3d` | Feature `e_1ba00243fb3725d59cae62a3`, Bug `e_d51dc5283d6365c312c865cf`, Improvement `e_feec88a4ec095231f7b1e3a2`, Task `e_b11aff7558c171f61b6bb79f` |
+| Module (team, multi) | `e_08962458943de84beb8036bf` | Application `e_0574685aa63b7e2a8401d3ce`, Automation `e_f4284fc0c502f93b6594a3be`, Platform `e_55f453730c2a50931496b1bf`, Connector `e_e29a338651389353cfe79ec6`, Agents `e_4cf07e73022c6c45899db345`, Changeset `e_1ab2143af91e6c20c0119f8a`, API Group `e_b00965d1e00892b17fa6e134`, Object Manager `e_ba33aa364f0eb40a6f7a8b7a`, Infra `e_b2def32365a01523da358b96`, Pipeline `e_24dd6e0dfcbdf7379f3516aa`, Product `e_f67de52242bf4cf3ed74e9bd` |
+| Environment (team, multi) | `e_3266dd9e066e8eb021338b16` | Production `e_0dbc627df3af346cbca526d9`, Pre Production `e_dc095f8dfc61546e75d777c2`, Internal UA `e_86e9f37ce6a8a787521b9d4c` |
+| Customers (workspace, multi) | `e_55c905086afbcdcb371e67ef` | Tekion `e_f72dffd52e1f13acbf28e22d` |
+| Reporter (team, person) | `e_d382583f666db910a3de62cc` | userIds |
+| Dev Category (workspace, multi) | `e_75f04c909919f9d70af3e50d` | UI `e_67bbbf4d8a30491460ce98d5`, BE `e_4b70001e6e5e679dd55240f3`, UI+BE `e_6f2b3865d64afedcff6ba220`, Config `e_e638e7aa8cdd0e5721cb2c8b`, Infra `e_1932197870cc34fa885c1b8f`, QA `e_d6dcb7869e99f35f39fdceb3`, Design `e_d9971c0d605ae1ab79c4a688`, Product `e_b9053034eac409bb1210452b`, Connector `e_d941f82bdd22e71df40bdf78`, DevOps `e_ad0c8497211a883f3cc00bb5` |
+| Category (workspace, single) | `e_853f8d5ac71d105380c5c7ff` | Blocker `e_0762e1ba05df03819188ee0a`, Config Tasks `e_2b8d0613a6c7d1b44d12efb7`, QA Issue `e_8287967c8ff5bb25ef403ef3` |
+
+Environments: `platform.toc.tekioncloud.xyz` and `finance.toc.tekioncloud.xyz` are Pre Production; `platform.toc.tekioncloud.com` is Production; Orbit (`orbit.uat.unifyapps.com`) is Internal UA.
+
+## People: Atlas userId and Slack id
+
+Confirmation list (their "resolved" closes a ticket): Jaimin Prajapati, Harsh Bansal, Jay Rathod, Meet Andharia, Shikha Choudhary, Vaibhav Dhand.
+
+| Person | Atlas | Slack | Role |
+|---|---|---|---|
+| Shikha Choudhary | 511577 | U09ME1BHLEL | delivery, runs this sync |
+| Jaimin Prajapati | 511604 | U0A2L3N0H38 | delivery, files most TEK tickets |
+| Harsh Bansal | 511510 | U08NQDNFF7Y | delivery |
+| Vaibhav Dhand | 511409 | U07123XR65R | delivery lead |
+| Jay Rathod | 511533 | U0A2N4QNUKC | delivery, finance |
+| Meet Andharia | 511535 | U0A2RN2590U | delivery |
+| Vinod Ramanathan | 516400 | U0AR640NLQ4 | client coordination, Jira with Tekion; assignee for Awaiting Customer |
+| Ankit Mishra | 519522 | U0BS0LA6XPV | ops / monitoring |
+| Aryam Singh (aryam) | 511616 | U0867RW4UUS | BE |
+| Vihar Shah | 511631 | U077B1VER0B | BE lead |
+| Navaneshwar Reddy | 511600 | U07AVA1BNUF | agents BE |
+| Kaniz Fatima | 510856 | U09B043DFUK | connectors |
+| Vaghani Devang | 511456 | U0A7M9BVD88 | BE (StarRocks, Orbit) |
+| Devang (DevOps) | 516139 | U0AKQ4VUK4Z | DevOps |
+| Atul Prajapati | 514904 | U08GK9S0DND | DevOps |
+| Kunwar Pratap Singh | 514898 | U0BKX9838TY | DevOps lead |
+| Anuj Mittal | 511518 | U074643VA1G | FE |
+| Shailendra Singh | 511626 | U07B1ASMEFJ | FE, copilot component |
+| Josh Ujwal Immadisetty | 511554 | U078DBE55V1 | platform |
+| Rishi Patel | 511475 | U0A6R15DVSA | agents BE |
+| Kavish Manubolu | 511598 | U06BXQQ8A2H | agents BE |
+| Hatim | 511627 | U077PT0F63T | agents BE |
+| Harsh Singh | 511328 | U0A6S9RHPK4 | agents / sandbox |
+| Raghav Arora | 511576 | U08US2PEQ3H | BE |
+| Parth Parekh | 511461 | U0A75TXP9UZ | BE |
+| Krunal Chhagani | 511617 | U076WL1CD55 | BE lead |
+| Harit Rajkotiya | 511632 | U087DL2203U | BE lead |
+| Aditya Kumar Rai | 511441 | U087711D7E2 | BE |
+| Hemanth Sai Gubala | 511549 | U07BD4J5UH1 | connectors |
+| Kotha Uday Kumar | 511345 | U07BAAE524D | connectors |
+| Lovekesh Garg | 511597 | U073CGCNXSB | connectors lead |
+| Rajeev Kumar | 511452 | U0893K88RLZ | connectors lead |
+| Utsav Kanani | 511448 | U0A75U0DHFB | BE |
+| Bhavesh Baraiya | 511594 | U087D9P1RPU | platform |
+| Arnesh Dadhich | 511350 | U07340C9A83 | agents |
+| Yash Ahlawat | 511429 | U07CCRW0DE3 | connectors |
+| Himanshu Nandan | 511078 | U0ACBP0QNSE | finance solutions |
+| Abhinav Singi | — | U062ANA21DZ | merges |
+| Rachit Mittal | — | U06BSBSFR54 | CTO office, asks for the board |
+| Apurba | — | U0BCFE5AUTU | leadership |
