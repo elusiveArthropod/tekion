@@ -86,6 +86,14 @@ When a ticket cannot be resolved from the thread, tag the thread owner on the ti
 - **No tickets for finance delivery planning** (CFO Suite MoM items) on TEK.
 - **Skip buckets 6 and 7 writes; defer bucket 8** until the user asks.
 
+## Field rules (set 22 Oct, apply to every ticket you touch or create)
+
+- **Every Slack issue since 1 Sep is on the board** with status and assignees current. The master list is the "Tekion_Delivery_Issues" sheet (`1MJd6WQhmoFJAZ16lzw1-8CxmxyGiRZhpOLHfCn4GExY`, tab Issues): every row must map to a TEK ticket by key or Slack thread link; a row with no ticket and no thread is verified by hand before anything is created, and may be a duplicate.
+- **Type, Module, Environment and Dev Category are never left empty.** Type: Bug for anything raised as broken, Task for config, security and infra work, Feature for new asks, Improvement for behaviour changes. Dev Category follows who fixes it: BE, UI, UI+BE, Connector, DevOps, Infra, Config.
+- **Category** is single-select. Set `RCA Review` on every incident ticket whose Category is empty or `Monday Migrated`; once the `RCA Added` option exists, use it instead when a root cause is written on the ticket. Keep an existing Blocker, Config Tasks or Review Needed. Leave Category empty on Canceled and Duplicate tickets and on plain tasks or features. `Monday Migrated` must not remain on any ticket in a completed status.
+- **Priority** is never left at none. Excel P0 → Urgent, P1 → High, P2 → Medium. Otherwise: Urgent when the client is blocked or a prod incident is open, High once the client is unblocked or for internal critical work, Medium for features and config asks, Low for cleanups.
+- `scripts/condense_board_cf.py` prints these fields per ticket so gaps can be audited in one pass.
+
 ## Known traps
 
 - `fetch_issues` with `search` returns full descriptions. Keep `size` small or you flood context.
