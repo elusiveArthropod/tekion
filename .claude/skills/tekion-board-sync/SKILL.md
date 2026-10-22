@@ -94,6 +94,9 @@ When a ticket cannot be resolved from the thread, tag the thread owner on the ti
 - Two Devangs: `devang@` is DevOps, `vaghani.devang@` is a BE developer.
 - Subagent thread summaries miss resolutions. Read threads yourself.
 - The Atlas MCP server can disconnect mid-session; reload tools with ToolSearch before retrying.
+- `fetch_issues` with `search` needs `scopeId` (the team id) as well as `scope`, and returns full descriptions: keep `size` at 5.
+- `slack_send_message` takes the body in `message`, not `text`.
+- The board moves while you work: others close tickets during the day. Re-read each ticket with `fetch_issue_details` (it returns `version`) right before writing, and when a ticket you meant to move was closed by someone else, comment with the Slack facts and tell the user instead of silently overriding.
 
 ## Closing a window
 

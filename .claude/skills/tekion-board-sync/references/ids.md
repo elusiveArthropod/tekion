@@ -54,6 +54,8 @@ Status keys for the `statusKey IN` filter: `backlog research design_todo dev_tod
 
 Environments: `platform.toc.tekioncloud.xyz` and `finance.toc.tekioncloud.xyz` are Pre Production; `platform.toc.tekioncloud.com` is Production; Orbit (`orbit.uat.unifyapps.com`) is Internal UA.
 
+Slack subteam `S082AN66QV6` is the BE/agents group that delivery tags on pre-prod issues; mention it as `<!subteam^S082AN66QV6>`.
+
 ## People: Atlas userId and Slack id
 
 Confirmation list (their "resolved" closes a ticket): Jaimin Prajapati, Harsh Bansal, Jay Rathod, Meet Andharia, Shikha Choudhary, Vaibhav Dhand.
@@ -97,6 +99,16 @@ Confirmation list (their "resolved" closes a ticket): Jaimin Prajapati, Harsh Ba
 | Arnesh Dadhich | 511350 | U07340C9A83 | agents |
 | Yash Ahlawat | 511429 | U07CCRW0DE3 | connectors |
 | Himanshu Nandan | 511078 | U0ACBP0QNSE | finance solutions |
+| Abhishek Anand | 511622 | — | FE |
+| Mihir Patel | 511447 | U0A6LKQ5FFV | platform |
+| Dakshveer Singh Chauhan | 511634 | U077ZV72CMN | platform lead, groovy/scripts |
+| Anshul Srivastava | 511027 | U098DQLAV1C | support, raises Tekion P0 tickets |
+| Rachamalla Satyanadh | 511353 | U09KB4G28F8 | security |
+| Vishnu Vardhan Vippala (Vishnu Reddy.V) | 511355 | U09K6RG4K19 | security reviewer |
+| Zeel Danani | 511379 | U0A6T0SGFC2 | BE |
+| Devashish Siwatch | 511636 | U07AFM866PM | BE lead |
+| Dhrupal Kukadia | 511451 | U077B6EPSSW | observability |
+| Sumit Bansal | 511542 | U086WM52Y56 | observability |
 | Abhinav Singi | — | U062ANA21DZ | merges |
 | Rachit Mittal | — | U06BSBSFR54 | CTO office, asks for the board |
 | Apurba | — | U0BCFE5AUTU | leadership |
