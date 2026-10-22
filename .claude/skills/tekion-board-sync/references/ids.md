@@ -123,6 +123,11 @@ Confirmation list (their "resolved" closes a ticket): Jaimin Prajapati, Harsh Ba
 | Dev Dodiya | 511486 | U0A6PHMQX4M | infra / builds |
 | Areeb Khan | 511303 | — | BE |
 | Sai Suma Tappeta | 510724 | U0B0CN10BJ8 | security scans |
+| Utkarsh Singhal | 510784 | — | BE, context graph |
+| Shivam Singhal | 511482 | U06TR4MRY6T | agents BE, SEV-245 |
+| Sanskar Singh | 511610 | U073GNURMJ5 | BE |
+| Rishabh Jain (rishabh.jain) | 511572 | U09CV2VQ17X | APM, raises Tekion asks; rishabh.jain1 is 510815 / U0BCFE0H4Q2 |
+| Sourav Thakur | 515042 | — | partner, Sev0 |
 | Abhinav Singi | — | U062ANA21DZ | merges |
-| Rachit Mittal | — | U06BSBSFR54 | CTO office, asks for the board |
+| Rachit Mittal | — | U06BSBSFR54 | CTO office, asks for the board, merges uacode PRs |
 | Apurba | — | U0BCFE5AUTU | leadership |
