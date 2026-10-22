@@ -155,3 +155,8 @@ Confirmation list (their "resolved" closes a ticket): Jaimin Prajapati, Harsh Ba
 | Abhinav Singi | — | U062ANA21DZ | merges |
 | Rachit Mittal | — | U06BSBSFR54 | CTO office, asks for the board, merges uacode PRs |
 | Apurba | — | U0BCFE5AUTU | leadership |
+| Rishit Unadkat | 511396 | U0A6ATP8UTZ | agents BE (not 511399, a gmail duplicate) |
+| Gaurav Kumar | 511620 | U086WLWLU80 | BE (gaurav.kumar@, not gaurav.kumar1@ 511423) |
+| Dhruv Goti | - | U087SC35SGH | agents BE lead |
+| Thanusree | - | U07BRT1Q65P | connectors |
+| Harshverdhan Swami | - | U06FL2TP57D | connectors |
