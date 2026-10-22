@@ -132,6 +132,26 @@ Confirmation list (their "resolved" closes a ticket): Jaimin Prajapati, Harsh Ba
 | Swetank Pandey | 511376 | U0882CGL8KA | data pipeline BE |
 | Vraj Gandhi | 511580 | U0A2FNWTM19 | app config / UI |
 | Karan Bhatia | 511605 | — | data pipeline lead |
+| Naman Kumar | 511427 | — | agents BE |
+| Prakhar Joshi | 511556 | — | agents BE |
+| Vishnu Vardhan | 511575 | U0767TBRJ02 | FE, forms/tables |
+| Ankit Vikal | 511417 | — | FDE automations |
+| Abhay Sharma | 511619 | U076MCF94NN | AI Solutions lead |
+| Neel Vasoya | 510930 | U0B4EGCRQFL | AI Solutions, files TTS tickets |
+| Mitul Sudani | 511301 | U0A6T292BEE | agents BE |
+| Dharmi Patel | 511557 | U0A6S7SC7HQ | agents BE |
+| Sagar Arora | 510903 | U0B7EKTF909 | text-to-config BE |
+| Dharmesh Kota | 511389 | U0A75U3FL5P | copilot config |
+| Ravi Kumar Sharma | 514928 | U07MJJUNS2X | sanity / QA coordination |
+| Rahul Bhanushali | 511190 | — | UAT env deployments |
+| Ishu | 511400 | U0A6WJ2DTJ8 | FE |
+| Vedant Poddar | 511483 | U07K0QL8STV | agents |
+| Rhythm Panchal | 511377 | U0A6T189W5Q | connectors BE |
+| Aditya Singhal | 511477 | U08651TCZB7 | agents BE |
+| Yash Patel | 511415 | U086FBK9VA9 | automation BE |
+| Nilesh Suthar | 511615 | U062HE04K8W | text-to-app |
+| Heet Thakkar | 511398 | U0A6LHMJZSP | agents BE |
+| Pranshu Lakhotia | 511419 | U0A6L0QA21H | agents BE |
 | Abhinav Singi | — | U062ANA21DZ | merges |
 | Rachit Mittal | — | U06BSBSFR54 | CTO office, asks for the board, merges uacode PRs |
 | Apurba | — | U0BCFE5AUTU | leadership |
