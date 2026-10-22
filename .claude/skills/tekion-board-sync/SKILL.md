@@ -105,6 +105,7 @@ When a ticket cannot be resolved from the thread, tag the thread owner on the ti
 - `fetch_issues` with `search` needs `scopeId` (the team id) as well as `scope`, and returns full descriptions: keep `size` at 5.
 - `slack_send_message` takes the body in `message`, not `text`.
 - The board moves while you work: others close tickets during the day. Re-read each ticket with `fetch_issue_details` (it returns `version`) right before writing, and when a ticket you meant to move was closed by someone else, comment with the Slack facts and tell the user instead of silently overriding.
+- A Slack message ts from the Excel can be a *reply* inside an older thread. `slack_read_thread` on a reply ts returns it as a root with "No thread messages", which hides the real history. Before judging a row "no reply", check the `thread_ts` in the message permalink or send result, and read the parent thread. Batch 2a row #78 (bulk retry) looked unanswered but sat inside a two-month feature thread.
 
 ## Closing a window
 

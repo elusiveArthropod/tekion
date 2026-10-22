@@ -128,6 +128,10 @@ Confirmation list (their "resolved" closes a ticket): Jaimin Prajapati, Harsh Ba
 | Sanskar Singh | 511610 | U073GNURMJ5 | BE |
 | Rishabh Jain (rishabh.jain) | 511572 | U09CV2VQ17X | APM, raises Tekion asks; rishabh.jain1 is 510815 / U0BCFE0H4Q2 |
 | Sourav Thakur | 515042 | — | partner, Sev0 |
+| Harmit Khimani | 511361 | U0A6Q7WH5GE | data pipeline, UAT/live PRs |
+| Swetank Pandey | 511376 | U0882CGL8KA | data pipeline BE |
+| Vraj Gandhi | 511580 | U0A2FNWTM19 | app config / UI |
+| Karan Bhatia | 511605 | — | data pipeline lead |
 | Abhinav Singi | — | U062ANA21DZ | merges |
 | Rachit Mittal | — | U06BSBSFR54 | CTO office, asks for the board, merges uacode PRs |
 | Apurba | — | U0BCFE5AUTU | leadership |
