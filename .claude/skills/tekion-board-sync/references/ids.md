@@ -109,6 +109,20 @@ Confirmation list (their "resolved" closes a ticket): Jaimin Prajapati, Harsh Ba
 | Devashish Siwatch | 511636 | U07AFM866PM | BE lead |
 | Dhrupal Kukadia | 511451 | U077B6EPSSW | observability |
 | Sumit Bansal | 511542 | U086WM52Y56 | observability |
+| Darshak Zankat | 511537 | U088257GBNU | FE lead |
+| Harshit Davda | 511618 | U07667AKMU4 | FE lead |
+| Vineet Chauhan | 511624 | U087G4WJ3N0 | FE |
+| Manikya Sharma | 511435 | U0A6SAXLMRQ | FE |
+| Mahavir Sancheti | 511357 | U0A7MA9F2F2 | agents |
+| Sahil Chhabra | 511551 | U086180139U | BE |
+| Yashika Gupta | 511406 | U0A6LLKLUM9 | BE |
+| Yash Tarpara | 511378 | U0A6NQQ9GJH | BE |
+| Jay Goyani | 511466 | U0A6WJ69R3N | BE |
+| Keyur Govrani | 511633 | U087D9FUJJE | FE |
+| Pulkit Pathak | 511426 | — | ai-python |
+| Dev Dodiya | 511486 | U0A6PHMQX4M | infra / builds |
+| Areeb Khan | 511303 | — | BE |
+| Sai Suma Tappeta | 510724 | U0B0CN10BJ8 | security scans |
 | Abhinav Singi | — | U062ANA21DZ | merges |
 | Rachit Mittal | — | U06BSBSFR54 | CTO office, asks for the board |
 | Apurba | — | U0BCFE5AUTU | leadership |
