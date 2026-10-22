@@ -135,7 +135,7 @@ Confirmation list (their "resolved" closes a ticket): Jaimin Prajapati, Harsh Ba
 | Naman Kumar | 511427 | — | agents BE |
 | Prakhar Joshi | 511556 | — | agents BE |
 | Vishnu Vardhan | 511575 | U0767TBRJ02 | FE, forms/tables |
-| Ankit Vikal | 511417 | — | FDE automations |
+| Ankit Vikal | 511417 | U0A6BGZUB71 | FDE automations |
 | Abhay Sharma | 511619 | U076MCF94NN | AI Solutions lead |
 | Neel Vasoya | 510930 | U0B4EGCRQFL | AI Solutions, files TTS tickets |
 | Mitul Sudani | 511301 | U0A6T292BEE | agents BE |
