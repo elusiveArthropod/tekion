@@ -125,3 +125,19 @@ The user's own message is therefore `userThreadMessageTimestamp` if set, else `h
 
 - `feedbackMessageTimestamp`: MF2 currently writes the **escalation** button ts here and MF3 looks it up here. When the flow is rebuilt, MF2 must write `escalationMessageTimestamp` and MF3 must look up by it, so this field means the Yes/No message only.
 - `threadTs` (Thread Ts (Legacy)) and `messageId` (Message ID (Legacy)): both hold the thread root today (MF2 / deployment n32). Replace with `headerThreadTs` in the rebuild; stop writing them after.
+
+## Deployed 2026-11-14 (tag `feedback_v2`)
+
+| Automation | Draft deployed | Live version (was) |
+|---|---|---|
+| P2P_2 \| AI Agent(Slack Deployment) `6ad0b3f38b7fba778f8b7556` | v36 | v20 (v19) |
+| Main Feedback 1 `6aeb1c0cda2c243f0fa4d13c` | v20 | v5 (v4) |
+| Main Feedback 2 `6aeb1e9a7b6dbf46afa0d2f3` | v10 | v4 (v3) |
+| Main Feedback 3 `6aeb1c20da2c243f0fa4d1cc` | v13 | v2 (v1) |
+| Main Feedback 4 `6aeb204c7b6dbf46afa0e44a` | v11 | v7 (v6) |
+
+Object `p2p_feedback_collector` v5: time fields are `feedbackAtTs`, `nextActionAtTs`, `resolvedAtTs` (string, Slack ts). The integer `feedbackAt` / `nextActionAt` / `resolvedAt` are deprecated: the platform refuses type changes on an object that has records.
+
+Before MF1/MF3 field re-point: `pre-deploy-<automationId>.json`. Roll back by redeploying the previous version from the automation's version history.
+
+Open after deploy: MF4 pin step is STOP (a second escalation in one thread may not tag Finance); `escalationStatus` and `notHelpfull_resolved_with` are not written; `user.id` / `action_ts` paths to be confirmed by the first test.
