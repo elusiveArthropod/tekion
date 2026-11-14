@@ -103,3 +103,25 @@ Do this together with the fixes from the flow review (branch on `action_id`, not
 ## Backfill (optional)
 
 The 212 + 34 old records map partly: `content` → `userMessageTs`, `messageTimestamp` → `feedbackMessageTs`, `messageId` → `threadTs`, feedback 1/0/null → enum. `userQuery` and `nextAction` cannot be recovered reliably for multi-turn threads (the escalation records only carry the thread root).
+
+## Applied on 2026-11-14 (object `p2p_feedback_collector`, schema v2 → v3)
+
+Decision: use the existing custom object `p2p_feedback_collector` instead of a new one. Existing keys were kept (no rename, no type change) because 44+ records and the old agent `e_69443639f65f3d1249f6f1fa` still use them; only display names changed. 18 fields were added. Before/after definitions: `p2p_feedback_collector.schema.before.json`, `p2p_feedback_collector.schema.after.json`.
+
+Spec name → actual key: `userQuery` → `content`, `askerSlackUserId` → `slackUserId`, `threadTs` → `headerThreadTs`, `feedbackMessageTs` → `feedbackMessageTimestamp`, `userMessageTs` → `userThreadMessageTimestamp`, `escalationMessageTs` → `escalationMessageTimestamp`. `feedback` (was a free string, never filled) is now single-select PENDING / HELPFUL / NOT_HELPFUL.
+
+### Slack timestamp rule
+
+| Field | Display name | Value |
+|---|---|---|
+| `feedbackMessageTimestamp` | Feedback Message Timestamp | ts of the "Was this helpful? Yes/No" message (deployment n30 output) |
+| `headerThreadTs` | Header Message Timestamp | always set. First message: the user's message ts. Message in a thread: the thread's root ts. Expression: `=IF(ISBLANK({{ h77A8.outputs.event.thread_ts }}),{{ h77A8.outputs.event.ts }},{{ h77A8.outputs.event.thread_ts }})` |
+| `userThreadMessageTimestamp` | Thread User Message Timestamp | only for a message in a thread: `{{ h77A8.outputs.event.ts }}` when `thread_ts` is not blank; empty for a first message |
+| `escalationMessageTimestamp` | Escalation Message Timestamp | ts of the "Continue / Raise To Finance Team" message (MF2) |
+
+The user's own message is therefore `userThreadMessageTimestamp` if set, else `headerThreadTs` (MF1 adds ✅ to that one).
+
+### Legacy fields, still written by the live flow
+
+- `feedbackMessageTimestamp`: MF2 currently writes the **escalation** button ts here and MF3 looks it up here. When the flow is rebuilt, MF2 must write `escalationMessageTimestamp` and MF3 must look up by it, so this field means the Yes/No message only.
+- `threadTs` (Thread Ts (Legacy)) and `messageId` (Message ID (Legacy)): both hold the thread root today (MF2 / deployment n32). Replace with `headerThreadTs` in the rebuild; stop writing them after.
