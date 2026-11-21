@@ -1,0 +1,163 @@
+{
+ "blank_rows_in_middle": {
+  "name": "blank_rows_in_middle.xlsx",
+  "source": "user-uploads/2/1795281436564/blank_rows_in_middle.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "cancelled_bad_amount": {
+  "name": "cancelled_bad_amount.xlsx",
+  "source": "user-uploads/2/1795281437434/cancelled_bad_amount.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "cancelled_no_amounts": {
+  "name": "cancelled_no_amounts.xlsx",
+  "source": "user-uploads/2/1795281438514/cancelled_no_amounts.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "cancelled_no_golive": {
+  "name": "cancelled_no_golive.xlsx",
+  "source": "user-uploads/2/1795281439307/cancelled_no_golive.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "clean_one_live": {
+  "name": "clean_one_live.xlsx",
+  "source": "user-uploads/2/1795281440161/clean_one_live.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "duplicate_deal": {
+  "name": "duplicate_deal.xlsx",
+  "source": "user-uploads/2/1795281440972/duplicate_deal.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "duplicate_deal_normalised": {
+  "name": "duplicate_deal_normalised.xlsx",
+  "source": "user-uploads/2/1795281441777/duplicate_deal_normalised.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "empty_header_only": {
+  "name": "empty_header_only.xlsx",
+  "source": "user-uploads/2/1795281442565/empty_header_only.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "live_bad_amount_and_date": {
+  "name": "live_bad_amount_and_date.xlsx",
+  "source": "user-uploads/2/1795281443397/live_bad_amount_and_date.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "live_blank_amounts": {
+  "name": "live_blank_amounts.xlsx",
+  "source": "user-uploads/2/1795281444257/live_blank_amounts.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "live_missing_required": {
+  "name": "live_missing_required.xlsx",
+  "source": "user-uploads/2/1795281445241/live_missing_required.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "live_number_formats": {
+  "name": "live_number_formats.xlsx",
+  "source": "user-uploads/2/1795281446053/live_number_formats.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "mixed_many_errors": {
+  "name": "mixed_many_errors.xlsx",
+  "source": "user-uploads/2/1795281446859/mixed_many_errors.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "non_live_missing_fields": {
+  "name": "non_live_missing_fields.xlsx",
+  "source": "user-uploads/2/1795281447697/non_live_missing_fields.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "status_synonyms": {
+  "name": "status_synonyms.xlsx",
+  "source": "user-uploads/2/1795281448481/status_synonyms.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "too_many_employees": {
+  "name": "too_many_employees.xlsx",
+  "source": "user-uploads/2/1795281449338/too_many_employees.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "transition_live_to_cancelled": {
+  "name": "transition_live_to_cancelled.xlsx",
+  "source": "user-uploads/2/1795281450131/transition_live_to_cancelled.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "transition_live_to_signed": {
+  "name": "transition_live_to_signed.xlsx",
+  "source": "user-uploads/2/1795281450940/transition_live_to_signed.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "transition_signed_to_live": {
+  "name": "transition_signed_to_live.xlsx",
+  "source": "user-uploads/2/1795281451734/transition_signed_to_live.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "two_employees_ok": {
+  "name": "two_employees_ok.xlsx",
+  "source": "user-uploads/2/1795281452567/two_employees_ok.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "unknown_status": {
+  "name": "unknown_status.xlsx",
+  "source": "user-uploads/2/1795281453362/unknown_status.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "zero_commission_early": {
+  "name": "zero_commission_early.xlsx",
+  "source": "user-uploads/2/1795281454158/zero_commission_early.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ },
+ "zero_commission_late": {
+  "name": "zero_commission_late.xlsx",
+  "source": "user-uploads/2/1795281455141/zero_commission_late.xlsx",
+  "sourceType": "CLOUD_STORAGE",
+  "fileType": "xlsx",
+  "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ }
+}
