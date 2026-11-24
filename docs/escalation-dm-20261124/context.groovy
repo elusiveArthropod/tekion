@@ -1,5 +1,6 @@
 // Builds the Finance escalation message and the conversation as a list of Slack thread replies
-// (one per user question / agent answer, long answers split with code blocks kept intact).
+// (one per user question / agent answer, long answers split with code blocks kept intact,
+// Markdown pipe tables converted to code blocks because Slack cannot render them).
 def getVar = { String n -> binding.hasVariable(n) && binding.getVariable(n) != null ? binding.getVariable(n).toString().trim() : '' }
 def esc = { String s -> (s ?: '').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;') }
 def clean = { String s ->
@@ -7,6 +8,49 @@ def clean = { String s ->
            .replaceAll(/\$\$\[[^\]]*\]\$\$/, '')
            .replaceAll(/\*\*([^*\n]+)\*\*/, '*$1*')   // Markdown bold -> Slack bold
            .trim()
+}
+// Slack cannot render Markdown pipe tables (| a | b |). Turn each one into an aligned code block,
+// drop the |---| separator row and bold markers inside cells. Headings (### x) become *x*.
+def fixTables = { String text ->
+  def tout = []
+  def tbl = []
+  boolean inCode = false
+  def isSep = { List cells -> cells && cells.every { it ==~ /:?-{2,}:?/ } }
+  def flush = {
+    if (!tbl) return
+    def trows = tbl.collect { String l ->
+      def t = l.trim()
+      if (t.startsWith('|')) t = t.substring(1)
+      if (t.endsWith('|')) t = t.substring(0, t.length() - 1)
+      t.split(/\|/, -1).collect { it.trim().replaceAll(/^\*{1,2}(.*?)\*{1,2}$/, '$1') }
+    }
+    boolean hasHeader = trows.size() > 1 && isSep(trows[1])
+    trows = trows.findAll { !isSep(it) }
+    int nc = trows.collect { it.size() }.max()
+    def tw = (0..<nc).collect { i -> trows.collect { r -> i < r.size() ? r[i].length() : 0 }.max() }
+    def tfmt = { List r -> (0..<nc).collect { i -> (i < r.size() ? r[i] : '').padRight(tw[i]) }.join(' | ').replaceAll(/\s+$/, '') }
+    tout << '```'
+    trows.eachWithIndex { r, i ->
+      tout << tfmt(r)
+      if (i == 0 && hasHeader) tout << tw.collect { '-' * it }.join('-|-')
+    }
+    tout << '```'
+    tbl.clear()
+  }
+  text.split('\n', -1).each { String line ->
+    def t = line.trim()
+    if (t.startsWith('```')) { flush(); inCode = !inCode; tout << line; return }
+    if (!inCode && t.startsWith('|') && t.indexOf('|', 1) > 0) { tbl << line; return }
+    flush()
+    if (!inCode) {
+      def h = (t =~ /^#{1,6}\s+(.+)$/)
+      if (h.matches()) { tout << '*' + h.group(1).replaceAll(/\*+/, '') + '*'; return }
+      if (t ==~ /-{3,}|\*{3,}|_{3,}/) { tout << ''; return }
+    }
+    tout << line
+  }
+  flush()
+  tout.join('\n').replaceAll(/\n{3,}/, '\n\n')
 }
 def textOf = { c ->
   if (c == null) return ''
@@ -55,7 +99,7 @@ def chunks = []
 int kept = 0
 rows.each { r ->
   if (isInternal(r)) return
-  def t = clean(textOf(r.content))
+  def t = fixTables(clean(textOf(r.content)))
   if (!t) return
   boolean bot = (r.type ?: '').toString() != 'fan'
   kept++

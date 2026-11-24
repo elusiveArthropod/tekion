@@ -20,3 +20,9 @@ Before: MF3.before.json, MF4.before.json. Deploy MF4 first, then MF3. The P2P_2 
 
 ## 24 Nov: conversation as thread replies (MF4 draft v19, NOT deployed; live is v12)
 Each user question / agent answer becomes its own thread reply via a for-each loop; answers over ~3,800 chars are split at line breaks with code blocks closed and reopened, so tables render whole. Internal agent messages (THOUGHT, AGENT_INTERNAL_RESPONSE, temporary) are skipped by marker; Markdown **bold** is converted to Slack *bold*. Pre-change definition: MF4.v17-before-chunking.json.
+
+## v21 draft: Markdown tables (2026-11-24)
+Slack cannot render Markdown pipe tables (`| Field | Details |`), so answers that used them showed raw pipes in the
+escalation thread. The transcript step now turns each pipe table into an aligned code block (separator row and `*bold*`
+in cells removed), turns `### Heading` into `*Heading*`, and drops `---` lines. Existing ``` blocks are left as they are.
+Live before this change: deployed v14 (= draft v19), saved as `MF4.v19-live-before-tablefix.json`.
