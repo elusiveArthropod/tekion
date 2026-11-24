@@ -77,16 +77,19 @@ FAIL: any create or run error, run not completing in budget, or missing scores. 
 
 ## ALERTS: automation alert channel watch (main session, loops)
 
-Window: from run start until `window_min` has elapsed and all product checks are terminal.
+The alert channel is fed by an automation that posts failed runs every 5 minutes. Only failures posted **after** `alert_since` (the moment the user provided inputs) exist for this run. Never read, report or count older alerts, and never search the channel history for them as a report; the team does not want to see previously failed runs.
 
-Each tick:
+Window: from `alert_since` until all of: `window_min` elapsed, all product checks terminal, and at least 10 minutes since the last product check finished (one full alert-poster cycle plus margin, so runs triggered by SB, FDE-QA and EVAL have had time to be reported).
 
-1. `slack_read_channel` on the alert channel, messages newer than the since-marker. Ignore messages already in `state.json → alerts`.
+Tick every 5 minutes. Each tick:
+
+1. `slack_read_channel` on the alert channel with `oldest` = max(`alert_since`, ts of the last recorded alert). Ignore messages already in `state.json → alerts`. If the channel shows nothing new, that is a normal tick, not a problem; the poster may simply not have run yet.
 2. For each new failed-run alert: read its thread. Open the run or session link with `ua_probe.mjs`; capture `visibleText` of the failing step. Extract:
    - automation / agent name and the failing node;
    - the exact error message;
    - the parent: which agent, knowledge base, application, connector or data source the failing node depends on (read the node's configuration or the trace input/output);
-   - whether the same error signature existed before the deploy (search the alert channel for the signature in the previous 24 h with `slack_search_public_and_private`).
+   - whether it was triggered by one of this run's product checks (the SB session, the EVAL experiment, an FDE question): match by asset name `sanity-<env>-<stamp>`, agent id or timestamp. Such a failure is also evidence for that check's verdict; tell the owning agent or fail the check yourself if it already passed.
+   - whether the same error signature existed before the deploy. This is a lookup for classification only (`slack_search_public_and_private` on the signature, previous 24 h); the older alert itself is never reported.
 3. Classify: **deployment-suspect** (new signature after deploy time, or touches a product under sanity, or matches an error seen in SB/EVAL/FDE), or **pre-existing** (same signature before the deploy). When the cause cannot be determined, say "root cause TBD" and name what to check next; never invent one.
 4. Post one reply per new alert in the results thread (template in `slack-templates.md`), and record it.
 

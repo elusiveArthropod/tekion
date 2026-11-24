@@ -33,7 +33,7 @@ Ask for all of these in one message; the user replies in one message. Defaults a
 | FDE agent id | no | `e_ai_fde_agent` |
 | Solution Builder prompt | no | the fixed prompt in `references/checks.md` |
 | FDE questions | no | the two in `references/checks.md` |
-| Alert watch window | no | 60 minutes after start |
+| Alert watch window | no | 60 minutes after start, and never closes sooner than 10 minutes after the last product check finishes |
 | Checks to skip (product absent in this env) | no | none |
 
 Store the cookie: `install -m 600 /dev/null <scratchpad>/sanity/cookie.txt` then write the value into it. Verify it works before announcing anything:
@@ -54,7 +54,9 @@ python3 .claude/skills/tekion-sanity/scripts/sanity_state.py <scratchpad>/sanity
 python3 .claude/skills/tekion-sanity/scripts/sanity_state.py <scratchpad>/sanity/state.json render --plan
 ```
 
-Post the rendered plan to the results channel with `slack_send_message`. Save the returned `ts` with `sanity_state.py ... slack-ts <ts>`. Every later post is a **reply in that thread** (`thread_ts`). Also note the Slack alert channel's current latest message ts: that is the "since" marker for ALERTS.
+Post the rendered plan to the results channel with `slack_send_message`. Save the returned `ts` with `sanity_state.py ... slack-ts <ts>`. Every later post is a **reply in that thread** (`thread_ts`).
+
+The ALERTS "since" marker is the moment the user provided the inputs; `init` stores it as `alert_since`. Alerts posted to the alert channel before that moment are never read, reported or counted. The team does not want to see failures that predate this run.
 
 ### 2. Launch the checks in parallel
 
@@ -72,14 +74,21 @@ Mark each check RUNNING in the state file as you launch it.
 
 ### 3. Loop: ALERTS tick plus progress
 
-Right after launching, do the first ALERTS tick (procedure in `references/checks.md`), then call `ScheduleWakeup` with `delaySeconds` 600 and the prompt `continue tekion-sanity loop`. On every wakeup:
+The alert channel is fed by an automation that posts failed runs **every 5 minutes**, so a failure caused by a product check shows up to 5 minutes after it happened. Right after launching, do the first ALERTS tick (procedure in `references/checks.md`), then call `ScheduleWakeup` with `delaySeconds` 300 and the prompt `continue tekion-sanity loop`. On every wakeup:
 
-1. Read `slack_read_channel` on the alert channel since the "since" marker. For each **new** failed-run alert: open its thread, open the run link with `ua_probe.mjs`, extract the failing node and the error text, find the parent (which agent, knowledge base, application or connector the node belongs to), and judge whether it is plausibly caused by the deployment (new error signature, started after deploy time, touches the deployed component) or pre-existing noise. Post one thread reply per new failure in the results thread, format in the templates file, and append it to `state.json` under `alerts`. Do not re-report an alert already recorded.
+1. Read `slack_read_channel` on the alert channel, messages with ts newer than `alert_since` and newer than the last one already recorded. For each **new** failed-run alert: open its thread, open the run link with `ua_probe.mjs`, extract the failing node and the error text, find the parent (which agent, knowledge base, application or connector the node belongs to), and judge whether it is plausibly caused by the deployment (new error signature, started after deploy time, touches the deployed component) or pre-existing noise. Post one thread reply per new failure in the results thread, format in the templates file, and append it to `state.json` under `alerts`. Do not re-report an alert already recorded.
 2. If a subagent finished (its result arrived), make sure its Slack post exists; if the agent crashed without posting, post the FAIL yourself with its error.
 3. If any check reported AUTH_EXPIRED: post the ⚠️ message listing remaining checks and ask the user in chat for a fresh cookie. On receiving it, overwrite the cookie file, verify it, relaunch only the unfinished checks.
-4. Schedule the next wakeup: 600 s while checks are running or the window is open; `noop: true` when nothing changed.
+4. Schedule the next wakeup: 300 s while checks are running or the window is open; `noop: true` when nothing changed.
 
-The loop ends when **all** of: every product check is terminal, the watch window has elapsed, and no alert is mid-investigation. Then `sanity_state.py ... render --final`, post it as the last thread reply, mention the on-call person only if the verdict is ❌, and call `ScheduleWakeup` with `stop: true`.
+The loop ends when **all** of:
+
+- every product check is terminal;
+- at least **10 minutes** have passed since the last product check finished, so the 5-minute alert poster has run at least once over the runs those checks triggered (record the finish time of the last check in the state file, `sanity_state.py ... set` updates `updated`);
+- the watch window (`window_min`, default 60 from start) has elapsed;
+- no alert is mid-investigation.
+
+Then `sanity_state.py ... render --final`, post it as the last thread reply, mention the on-call person only if the verdict is ❌, and call `ScheduleWakeup` with `stop: true`.
 
 ### 4. Clean up and record
 

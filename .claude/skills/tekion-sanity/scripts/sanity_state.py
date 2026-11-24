@@ -6,6 +6,7 @@
   sanity_state.py <state.json> slack-ts <ts>          remember the Slack root post ts
   sanity_state.py <state.json> render [--plan|--progress|--final]   print a Slack-formatted message
   sanity_state.py <state.json> remaining                print checks not yet in a terminal state
+  sanity_state.py <state.json> alert-since              print the Slack ts to use as `oldest` for the alert channel
 """
 import json, sys, argparse, datetime as dt
 
@@ -40,7 +41,10 @@ def main():
 
     if a.cmd == "init":
         checks = [c.strip() for c in (a.checks or "SB,FDE-UI,FDE-QA,EVAL,ALERTS").split(",") if c.strip()]
-        s = {"env": a.env, "base_url": a.base_url, "started": now(), "window_min": a.window_min, "slack_ts": None,
+        started_iso = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+        s = {"env": a.env, "base_url": a.base_url, "started": now(), "started_iso": started_iso,
+             "alert_since": started_iso, "alert_since_slack_ts": f"{dt.datetime.now(dt.timezone.utc).timestamp():.6f}",
+             "window_min": a.window_min, "slack_ts": None,
              "checks": {c: {"status": "PENDING", "note": "", "evidence": [], "updated": now()} for c in checks},
              "alerts": []}
         save(a.state, s); print(f"initialised {len(checks)} checks"); return
@@ -56,13 +60,15 @@ def main():
         save(a.state, s); print(f"{check} -> {status}"); return
     if a.cmd == "slack-ts":
         s["slack_ts"] = a.rest[0]; save(a.state, s); return
+    if a.cmd == "alert-since":
+        last = max([x.get("ts", "0") for x in s["alerts"]] + [s["alert_since_slack_ts"]]); print(last); return
     if a.cmd == "remaining":
         print("\n".join(k for k, v in s["checks"].items() if v["status"] not in TERMINAL)); return
     if a.cmd == "render":
         lines = []
         if a.plan:
             lines.append(f"🧪 *Tekion platform sanity — {s['env']}* started {s['started']}")
-            lines.append(f"Target: {s['base_url']}  |  Alert watch window: {s['window_min']} min")
+            lines.append(f"Target: {s['base_url']}  |  Alert watch: from now, every 5 min, at least {s['window_min']} min and 10 min past the last check")
             lines.append(f"Running *{len(s['checks'])} checks in parallel*. Each posts its result in this thread as it finishes.")
             for i, (k, v) in enumerate(s["checks"].items(), 1):
                 lines.append(f"{i}. {ICON[v['status']]} `{k}` — {LABEL.get(k, k)}")
@@ -77,6 +83,7 @@ def main():
                 lines.append(f"{ICON[v['status']]} `{k}` {v['status']}{(' — ' + v['note']) if v['note'] else ''}{ev}")
             if a.final:
                 rem = [k for k, v in s["checks"].items() if v["status"] not in TERMINAL]
+                lines.append(f"Alert watch covered {s['alert_since']} → {now()} (older alerts intentionally not shown)")
                 if rem: lines.append(f"Not completed: {', '.join(rem)}")
                 if s["alerts"]: lines.append(f"New automation failures during window: {len(s['alerts'])}")
         print("\n".join(lines)); return
