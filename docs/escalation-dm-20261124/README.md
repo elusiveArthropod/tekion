@@ -13,3 +13,7 @@ In a DM, pinning the thread and tagging Finance no longer reaches them, so escal
   The first DM message and the pin step are skipped (kept in the definition for rollback).
 
 Before: MF3.before.json, MF4.before.json. Deploy MF4 first, then MF3. The P2P_2 Slack app must be a member of C0CLEPPCP8T.
+
+## Deployed 24 Nov
+- MF3 live v3 = draft v14 (as designed).
+- MF4 was deployed as v11 by someone else with the escalation post moved to channel C0CK9AW8X9C, while the transcript thread reply still pointed at C0CLEPPCP8T (reply would fail silently). Fixed: thread reply uses the same channel. Draft v17, live v12. Both posts now go to C0CK9AW8X9C; to switch channels, change n_post01 and n_post02 together.
