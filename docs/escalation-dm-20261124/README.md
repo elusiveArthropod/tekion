@@ -17,3 +17,6 @@ Before: MF3.before.json, MF4.before.json. Deploy MF4 first, then MF3. The P2P_2 
 ## Deployed 24 Nov
 - MF3 live v3 = draft v14 (as designed).
 - MF4 was deployed as v11 by someone else with the escalation post moved to channel C0CK9AW8X9C, while the transcript thread reply still pointed at C0CLEPPCP8T (reply would fail silently). Fixed: thread reply uses the same channel. Draft v17, live v12. Both posts now go to C0CK9AW8X9C; to switch channels, change n_post01 and n_post02 together.
+
+## 24 Nov: conversation as thread replies (MF4 draft v19, NOT deployed; live is v12)
+Each user question / agent answer becomes its own thread reply via a for-each loop; answers over ~3,800 chars are split at line breaks with code blocks closed and reopened, so tables render whole. Internal agent messages (THOUGHT, AGENT_INTERNAL_RESPONSE, temporary) are skipped by marker; Markdown **bold** is converted to Slack *bold*. Pre-change definition: MF4.v17-before-chunking.json.

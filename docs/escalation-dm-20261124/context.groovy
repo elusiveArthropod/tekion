@@ -1,7 +1,13 @@
-// Builds the Finance escalation message and the full conversation for the thread reply.
+// Builds the Finance escalation message and the conversation as a list of Slack thread replies
+// (one per user question / agent answer, long answers split with code blocks kept intact).
 def getVar = { String n -> binding.hasVariable(n) && binding.getVariable(n) != null ? binding.getVariable(n).toString().trim() : '' }
 def esc = { String s -> (s ?: '').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;') }
-def clean = { String s -> (s ?: '').replaceAll(/<@[A-Z0-9]+>/, '').replaceAll(/\$\$\[[^\]]*\]\$\$/, '').trim() }
+def clean = { String s ->
+  (s ?: '').replaceAll(/<@[A-Z0-9]+>/, '')
+           .replaceAll(/\$\$\[[^\]]*\]\$\$/, '')
+           .replaceAll(/\*\*([^*\n]+)\*\*/, '*$1*')   // Markdown bold -> Slack bold
+           .trim()
+}
 def textOf = { c ->
   if (c == null) return ''
   if (c instanceof Map) return (c.text ?: '').toString()
@@ -11,30 +17,57 @@ def textOf = { c ->
   }
   return s
 }
+def isInternal = { Map r ->
+  def a = r.additional
+  if (a instanceof String) { try { a = new groovy.json.JsonSlurper().parseText(a) } catch (Exception e) { a = [:] } }
+  if (!(a instanceof Map)) a = [:]
+  a.temporaryMessage == true || a.temporaryMessage == 'true' || (a.internalMessageType in ['THOUGHT', 'AGENT_INTERNAL_RESPONSE'])
+}
+
+int LIMIT = 3800
+// Split one message into pieces of at most LIMIT characters, at line breaks,
+// closing an open ``` block at the end of a piece and reopening it in the next.
+def splitText = { String text ->
+  def pieces = []
+  def cur = new StringBuilder()
+  boolean inCode = false
+  text.split('\n', -1).each { String line ->
+    def ln = line.length() > LIMIT - 10 ? line.substring(0, LIMIT - 10) : line
+    if (cur.length() + ln.length() + 5 > LIMIT) {
+      if (inCode) cur.append('\n```')
+      pieces << cur.toString()
+      cur = new StringBuilder(inCode ? '```\n' : '')
+    } else if (cur.length() > 0) {
+      cur.append('\n')
+    }
+    cur.append(ln)
+    if ((ln =~ /```/).count % 2 == 1) inCode = !inCode
+  }
+  if (inCode) cur.append('\n```')
+  if (cur.toString().trim()) pieces << cur.toString()
+  pieces
+}
 
 def raw = binding.hasVariable('messages') && binding.getVariable('messages') instanceof List ? binding.getVariable('messages') : []
 def rows = raw.collect { r -> (r instanceof Map && r.properties instanceof Map) ? r.properties : (r instanceof Map ? r : [:]) }
 
-def lines = []
+def chunks = []
+int kept = 0
 rows.each { r ->
+  if (isInternal(r)) return
   def t = clean(textOf(r.content))
   if (!t) return
   boolean bot = (r.type ?: '').toString() != 'fan'
-  // Skip the bot's progress lines such as "Executing the tool ... to assist you."
-  if (bot && t.length() < 200 && (t =~ /(?i)\btool\b/).find()) return
-  if (t.length() > 1500) t = t.substring(0, 1500) + ' ...'
-  lines << ((bot ? '*P2P Genie:* ' : '*User:* ') + esc(t))
+  kept++
+  def label = bot ? '*P2P Genie:*\n' : '*User:* '
+  def parts = splitText(esc(t))
+  parts.eachWithIndex { p, i -> chunks << ((i == 0 ? label : (bot ? '*P2P Genie (cont.):*\n' : '*User (cont.):* ')) + p) }
 }
-
-// Keep the most recent messages within Slack's comfortable message size.
-def kept = []
-int total = 0
-for (int i = lines.size() - 1; i >= 0; i--) {
-  def l = lines[i]
-  if (total + l.length() > 11000) { kept.add(0, '_(earlier messages omitted)_'); break }
-  kept.add(0, l)
-  total += l.length()
+if (chunks.size() > 40) {
+  chunks = ['_(' + (chunks.size() - 39) + ' earlier replies omitted)_'] + chunks.subList(chunks.size() - 39, chunks.size())
 }
+if (!chunks) chunks = ['_Conversation history is not available for this escalation._']
+chunks[0] = '*Conversation with P2P Genie*\n\n' + chunks[0]
 
 def uid = getVar('slackUserId')
 def name = getVar('askerName')
@@ -42,7 +75,6 @@ def email = getVar('askerEmail')
 def by = getVar('escalatedBy')
 def q = esc(clean(getVar('userQuery')))
 if (q.length() > 800) q = q.substring(0, 800) + ' ...'
-
 def who = (uid ? '<@' + uid + '>' : '') + ((name || email) ? ' (' + [name, email].findAll { it }.join(', ') + ')' : '')
 def mainText = ':interrobang: *Escalated from P2P Genie*\n' +
   '*Raised by:* ' + (who ?: 'Unknown user') + '\n' +
@@ -51,6 +83,4 @@ def mainText = ':interrobang: *Escalated from P2P Genie*\n' +
   '<@U08N4N85J6P> <@U0AG6TNMF3N> please review. The full conversation is in the thread below. ' +
   'The user asked in a direct message with P2P Genie, so please reply to them directly.'
 
-def transcript = kept ? ('*Conversation with P2P Genie*\n\n' + kept.join('\n\n')) : '_Conversation history is not available for this escalation._'
-
-result = [mainText: mainText, transcript: transcript, messageCount: lines.size()]
+result = [mainText: mainText, chunks: chunks, chunkCount: chunks.size(), messageCount: kept]
