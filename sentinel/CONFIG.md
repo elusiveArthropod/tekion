@@ -55,12 +55,13 @@ Every Sentinel automation id goes into the Notifier's `triggerInputCondition` so
 
 | Automation | Id |
 |---|---|
-| sentinel · notifier | `6b071c56e61cdd44b6f3050f` (deployed v3) |
-| sentinel · grouper | |
+| sentinel · notifier | `6b071c56e61cdd44b6f3050f` (deployed v4) |
+| sentinel · grouper | `6b0732e577940a61944d6d96` (deployed v1, every 2 min) |
 | sentinel · poster | |
 | sentinel · stuck-runs | |
 | sentinel · safety-checks | |
 | sentinel · follow-up | |
+| sentinel · registry-sync | `6b0732b877940a61944d6d70` (deployed v1, callable; seeds the registry in 4 pages of 500) |
 | sentinel · test-failure (test helper, must NOT be excluded) | `6b071bd0e61cdd44b6f30077` (deployed v0) |
 
 ## Built so far
@@ -70,6 +71,28 @@ Every Sentinel automation id goes into the Notifier's `triggerInputCondition` so
 | Object `sentinel_failed_run` (Sentinel Failed Run) | `sentinel_failed_run` | 22 fields, unique index on executionId, indexes on state, fingerprint, rootExecutionId. Definition: `objects/sentinel_failed_run.json` |
 | `sentinel · notifier` | `6b071c56e61cdd44b6f3050f` | Trigger → Groovy parse → create record. Code: `automations/sentinel-notifier.ts`. Verified: failure to record in about 100 ms. |
 | `sentinel · test-failure` | `6b071bd0e61cdd44b6f30077` | Callable; one Groovy node throws `SENTINEL_TEST_FAILURE: <reason>`. Fire with `trigger_workflow_run` runType `workflow`. |
+
+## Objects built in step 2
+
+| Object | Id | Notes |
+|---|---|---|
+| Sentinel Issue | `sentinel_issue` | unique fingerprint; state, severity, counters, needsPost/postKind for the poster |
+| Sentinel Config | `sentinel_config` | key/value; 14 seeded keys incl. thresholds, channel id, group ids, shadowMode=true |
+| Sentinel Workflow Registry | `sentinel_workflow_registry` | seeded 2000 rows from WorkflowDefinition (page cap; more pages needed), auto rows for unknown automations |
+| Sentinel Incident | `sentinel_incident` | storm/infra/dependency; not yet written by the grouper (flags computed only) |
+
+## Known-noise automations excluded at the notifier trigger
+
+Same four ids the existing Node Failure Alert poller excludes. Observed in the first 90 minutes: 11,801 failed runs stored, most from a handful of automations.
+
+| Automation | Id | Runs in 90 min |
+|---|---|---|
+| Throw Exception \| Agent (fails by design) | `68b827559a4a9d0149caa07d` | 1621 |
+| Call automation batch with signal | `68c82cf26d4de43586f67a81` | 863 |
+| (no registry row) | `66af3ff4cd79b321cb478a37` | 758 |
+| (zero runs seen) | `6857dea0c42da15675ef3827` | 0 |
+
+Not excluded, decision pending: Generic Fetch Embeddings `6784b9216fb83f0972c5625d` (3032, "Method Not Allowed"), Knowledge Indexer With RBAC (InMemory) `69c413209c79a662475933c9` (758).
 
 ## Payload shape as observed (differs from the docs)
 
