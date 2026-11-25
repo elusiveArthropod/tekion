@@ -4,6 +4,7 @@ Each check is run by its own subagent, in parallel. `<base>` is the platform URL
 
 Common rules:
 
+- API calls use the API token via `scripts/ua_api_hdr.sh` (`x-ua-at` header). Browser steps use the browser session cookie via `scripts/ua_probe.mjs`. They are different credentials; see `platform-api.md` → AUTH MECHANISM.
 - Time budgets are hard. Exceeding one is FAIL with note "timed out after N min".
 - A login redirect or HTTP 401/403 at any step is AUTH_EXPIRED, not FAIL.
 - Every created asset is named `sanity-<env>-<YYYYMMDD-HHMM>` so it can be found and deleted.
@@ -32,27 +33,32 @@ Procedure:
 PASS: build completed within budget, no error steps in the session trace, all four functional assertions true.
 FAIL: build did not complete, or any error step in the trace, or any functional assertion false. Note must say which. The session URL is the primary evidence; an error step inside it is also a lead for ALERTS (same agent/knowledge/application may be failing elsewhere).
 
-## FDE-UI: AI FDE agent page
+## FDE-UI: AI FDE copilot panel (the surface users actually see)
 
 Budget: 5 min.
 
-1. `ua_probe.mjs --url <base>/p/0/ai-agents/<agentId>/configuration/instructions`. Must load without login redirect, `apiErrors` empty, and `visibleText` must contain the agent's instructions text (non-empty configuration).
-2. Open the agent's chat / test surface (**discover** the URL or tab; it is where a user would talk to the agent). Capture `visibleText` and a screenshot.
-3. Conversation starters: at least one starter chip or suggested prompt is visible. **Discover** the selector; fall back to checking `visibleText` for the starter texts configured on the agent.
+The AI FDE that users talk to is the **copilot panel** opened from the `✦ AI FDE` button in the platform's top bar. Its greeting is "Hey, I'm AI FDE" / "I can help you do your best work" and it shows starter chips (seen 2026-11-25: "How do I convert or merge files (PDF, Excel)?", "How do I write an analytics SQL query?", "How do I map a data pill?"). These starters are configured on the **copilot**, not on the agent entity: `GET /api/entity/ai_agent/e_ai_fde_agent` has `conversationStarters: []` and the agent's `/test` page shows no chips. Do not judge starters from the agent config page or the `/test` page; that was the false FAIL of 2026-11-25.
 
-PASS: both pages load, no `apiErrors`, at least one conversation starter visible.
-FAIL: anything else. Screenshot plus the `apiErrors` list are the evidence.
+1. `ua_probe.mjs --url <base>/p/0/ai-agents/<agentId>/configuration/instructions`: must load without login redirect, `apiErrors` empty, `visibleText` contains the instructions (non-empty). This is the "agent exists and is configured" half.
+2. Open any platform page that shows the top bar (the same instructions URL is fine) and click the top-right `AI FDE` button: action `{"type":"click","selector":"text=AI FDE"}` (**discover** and record the stable selector if `text=` matches more than one element; a `role=button[name=/AI FDE/]` form is the next thing to try). Then `waitForText` `Hey, I'm AI FDE` with a 30 s timeout, `screenshot`, and capture the chips:
+   `{"type":"eval","js":"[...document.querySelectorAll('button, [role=button], a')].map(e=>e.innerText.trim()).filter(t=>/^How do I|\?$/.test(t))"}`
+3. Starters present = the eval returns at least one string, or `visibleText` contains at least one of the chip texts above.
+
+PASS: instructions page loads cleanly, the panel opens with its greeting, at least one starter chip visible.
+FAIL: panel does not open, greeting missing, or zero chips. Screenshot plus `apiErrors` are the evidence. If the panel opens but the chips are gone, say so explicitly: that is a copilot configuration regression, not a page failure, and still a FAIL.
 
 ## FDE-QA: two platform questions to the AI FDE
 
-Budget: 4 min per question. These are general platform how-to questions. They must not ask the agent to create or change anything.
+Budget: 4 min per question. General platform how-to questions; never ask the agent to create or change anything.
 
 Default questions:
 
 1. `How can I configure an API connection to an external REST service in this platform?`
 2. `How do I schedule an automation to run every day at 9 AM?`
 
-Procedure for each question: open the chat surface, `fill` the input, send, `waitFor` the assistant reply (**discover** the reply container selector; fallback `waitForText` on a word expected in the answer with a 240 s timeout), then `text` the reply.
+Ask through the **copilot panel** (open it as in FDE-UI; input placeholder "Ask anything..."). If the panel cannot be driven, fall back to the agent test page `<base>/p/0/ai-agents/<agentId>/test?chatId=new` (input `div[contenteditable='true'][role='textbox']`, send with Enter) and say in the note which surface was used.
+
+Reply capture (verified 2026-11-25 on the test page): there is no stable per-message selector. The agent first shows a tool line ("Let's make use of the tool Ask From Knowledge", 18 to 24 s), then "Generating response…", then the answer ending with "Response has been generated". Wait for that end marker (`waitForText`, 240 s), allow 5 s to settle, then `text` on `body` and slice after the echoed question. Do not `waitForText` on an answer term; it fires while the tool call is still running.
 
 Acceptance per question (all three):
 
@@ -68,8 +74,8 @@ Budget: 15 min. Uses the verified entity API in `platform-api.md`.
 
 1. Create dataset `sanity-<env>-<stamp>` (`POST /api/entity` with `entityType:"dataset"`, `type:"LLM"`, `visibleFields` as documented).
 2. Create two test cases (`llm_test_case`, `properties.datasetId` set) with the two FDE-QA questions as `input` and an expected output of the form "Explains how to … Must mention: <two terms>".
-3. Create an experiment against the FDE agent, with this dataset and an existing metric (Answer Relevancy if present, else any SCALE metric). **Discover** the experiment entity type and create body on the first run through the UI (`/p/0/evaluation/...`); record it. Run it.
-4. Poll the run until every test case has `actualOutput` and `metricScores` (pattern in `platform-api.md`), within budget.
+3. Create an experiment (`entityType:"experiment"`, body in `platform-api.md`) against the FDE agent, with this dataset and an existing metric (Answer Relevancy `e_6ae06cf9d4501754c758f443` on Pre-prod finance if present, else any SCALE metric). Starting the run has no REST path: open `<base>/p/0/evaluation/experiments/<expId>/runs` with `ua_probe.mjs` and click `text=Start Run`.
+4. Poll `POST /api/entity/experiment_runs` (filter on `properties.experimentId`) until `status` is `completed`, then `POST /api/entity/test_case_runs` (same filter, required) until every case has `actualOutput` and `metricScores`, within budget.
 5. Delete the experiment, test cases and dataset (`POST /api/entity/<type>/delete/<id>`), and verify each `GET` now returns 404 or an empty result.
 
 PASS: dataset and cases created, experiment ran to completion, both cases have an actual output and a metric score (the score value itself is not judged), cleanup verified.

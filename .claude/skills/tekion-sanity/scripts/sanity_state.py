@@ -14,7 +14,7 @@ TERMINAL = {"PASS", "FAIL", "SKIPPED"}
 ICON = {"PENDING": "⬜", "RUNNING": "⏳", "PASS": "✅", "FAIL": "❌", "AUTH_EXPIRED": "⚠️", "SKIPPED": "⏭️"}
 LABEL = {
     "SB": "Solution Builder: build from fixed prompt, session clean, app works",
-    "FDE-UI": "AI FDE: agent page loads, conversation starters render",
+    "FDE-UI": "AI FDE: agent configured, copilot panel opens with conversation starters",
     "FDE-QA": "AI FDE: two platform questions answered",
     "EVAL": "Evaluation: create dataset + cases, run experiment, scores present",
     "ALERTS": "Alert channel: new automation failures since start, with root cause",

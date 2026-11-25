@@ -15,7 +15,7 @@ Hard rules:
 - **Every FAIL carries evidence**: a session or run link, the exact error text in a code block, and a screenshot path or Slack upload. A FAIL with no evidence is not allowed.
 - **Cookie expiry is its own status (⚠️ AUTH_EXPIRED)**, never reported as a platform failure. When it happens, post what is left and ask the user for a fresh cookie, then resume only the unfinished checks.
 - **Clean up what you created** (solution, dataset, test cases, experiment) at the end, in Prod and Pre-prod alike. Report anything you could not delete.
-- The cookie goes into a `chmod 600` file in the scratchpad and is passed by path. Never print it, never put it in Slack, never commit it.
+- The API token and the browser cookie go into `chmod 600` files in the scratchpad and are passed by path. Never print them, never put them in Slack, never commit them.
 - Slack messages: no model names, no hedging. Status, evidence, next action.
 
 ## Inputs
@@ -26,23 +26,25 @@ Ask for all of these in one message; the user replies in one message. Defaults a
 |---|---|---|
 | Environment name | yes | — (`PRE-PROD` or `PROD`, plus tenant name) |
 | Platform base URL | yes | — e.g. `https://finance.toc.tekioncloud.xyz` |
-| Session cookie (raw `Cookie:` header value) | yes | — |
+| API token (`x-ua-at` value, looks like `2_<uuid>_00`) | yes | — used for every `/api/*` call |
+| Browser session cookie (full `Cookie:` request header from DevTools → Network on any platform page) | yes | — used for every UI page; the API token does not work as a cookie |
 | Alert channel (Slack link or id) where failed automation runs are posted | yes | — |
 | Results channel | no | `C0CLBMLJ10T` |
 | AI Teams team id (Solution Builder) | no | `e_69a84345925f136d9c9e437e` (same id across tenants) |
-| FDE agent id | no | `e_ai_fde_agent` |
+| FDE agent id | no | `e_ai_fde_agent` (the user-facing surface is the `AI FDE` copilot panel in the top bar) |
 | Solution Builder prompt | no | the fixed prompt in `references/checks.md` |
 | FDE questions | no | the two in `references/checks.md` |
 | Alert watch window | no | 60 minutes after start, and never closes sooner than 10 minutes after the last product check finishes |
 | Checks to skip (product absent in this env) | no | none |
 
-Store the cookie: `install -m 600 /dev/null <scratchpad>/sanity/cookie.txt` then write the value into it. Verify it works before announcing anything:
+Store both credentials in `chmod 600` files (`install -m 600 /dev/null <scratchpad>/sanity/token.txt`, same for `cookie.txt`) and verify both before announcing anything:
 
 ```
-bash .claude/skills/tekion-sanity/scripts/ua_api.sh <base> <cookie-file> GET /api/entity/dataset/probe
+bash .claude/skills/tekion-sanity/scripts/ua_api_hdr.sh <base> <token-file> POST /api/entity/dataset '{"page":{"limit":1,"offset":0}}'
+node .claude/skills/tekion-sanity/scripts/ua_probe.mjs --url <base>/p/0/ai-agents/<agentId>/configuration/instructions --cookie-file <cookie-file> --out <scratchpad>/sanity --name authcheck
 ```
 
-HTTP 401/403 or a login redirect means the cookie is already dead. Say so and stop; do not post the plan.
+The first must return HTTP 200; the second must exit 0 (exit 2 is a login redirect). If either fails, the credential is already dead. Say which one and stop; do not post the plan.
 
 ## Process
 
@@ -62,9 +64,9 @@ The ALERTS "since" marker is the moment the user provided the inputs; `init` sto
 
 Launch one `Agent` (subagent_type `general-purpose`, `run_in_background: true`) per product check, all in a single message: `SB`, `FDE-UI`, `FDE-QA`, `EVAL`. Keep `ALERTS` in the main session (it is cheap Slack reading and it needs to loop).
 
-Each agent prompt must contain, verbatim: the base URL, the cookie file path, the scratchpad output dir, the results channel id and thread ts, the state file path, the check id, and the full procedure for that check copied from `references/checks.md` (the agent cannot see this conversation). Tell it to:
+Each agent prompt must contain, verbatim: the base URL, the token file path, the cookie file path, the scratchpad output dir, the results channel id and thread ts, the state file path, the check id, and the full procedure for that check copied from `references/checks.md` (the agent cannot see this conversation). Tell it to:
 
-1. Run the procedure, using `scripts/ua_probe.mjs` for browser steps and `scripts/ua_api.sh` for API calls (`references/platform-api.md` has the verified calls).
+1. Run the procedure, using `scripts/ua_probe.mjs` with the cookie file for browser steps and `scripts/ua_api_hdr.sh` with the token file for API calls (`references/platform-api.md` has the verified calls and the auth rules).
 2. Decide PASS / FAIL / AUTH_EXPIRED / SKIPPED strictly by the criteria.
 3. Update the state file (`sanity_state.py ... set <check> <status> "<note>" --evidence <url>`).
 4. Post its result as a thread reply using the format in `references/slack-templates.md`, with a screenshot uploaded on FAIL.
