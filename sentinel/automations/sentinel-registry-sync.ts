@@ -11,33 +11,62 @@ export default automation(
     }),
   },
   (t) => {
-    // Platform automations: id, name, owner (four pages of 500)
+    // Platform automations: id, name, owner (ten pages of 500)
     const defs = op("standard_entities", "standard_entities_fetch_entities", {
       entityType: "WorkflowDefinition", group: "STANDARD",
       projections: [{ name: "id", aggregationFunction: "GROUP" }, { name: "name", aggregationFunction: "GROUP" }, { name: "oUId", aggregationFunction: "GROUP" }],
       page: { limit: 500, offset: 0 },
     });
-    const defs2 = op("standard_entities", "standard_entities_fetch_entities", {
+    const defs1 = op("standard_entities", "standard_entities_fetch_entities", {
       entityType: "WorkflowDefinition", group: "STANDARD",
       projections: [{ name: "id", aggregationFunction: "GROUP" }, { name: "name", aggregationFunction: "GROUP" }, { name: "oUId", aggregationFunction: "GROUP" }],
       page: { limit: 500, offset: 500 },
     });
-    const defs3 = op("standard_entities", "standard_entities_fetch_entities", {
+    const defs2 = op("standard_entities", "standard_entities_fetch_entities", {
       entityType: "WorkflowDefinition", group: "STANDARD",
       projections: [{ name: "id", aggregationFunction: "GROUP" }, { name: "name", aggregationFunction: "GROUP" }, { name: "oUId", aggregationFunction: "GROUP" }],
       page: { limit: 500, offset: 1000 },
     });
-    const defs4 = op("standard_entities", "standard_entities_fetch_entities", {
+    const defs3 = op("standard_entities", "standard_entities_fetch_entities", {
       entityType: "WorkflowDefinition", group: "STANDARD",
       projections: [{ name: "id", aggregationFunction: "GROUP" }, { name: "name", aggregationFunction: "GROUP" }, { name: "oUId", aggregationFunction: "GROUP" }],
       page: { limit: 500, offset: 1500 },
     });
-
+    const defs4 = op("standard_entities", "standard_entities_fetch_entities", {
+      entityType: "WorkflowDefinition", group: "STANDARD",
+      projections: [{ name: "id", aggregationFunction: "GROUP" }, { name: "name", aggregationFunction: "GROUP" }, { name: "oUId", aggregationFunction: "GROUP" }],
+      page: { limit: 500, offset: 2000 },
+    });
+    const defs5 = op("standard_entities", "standard_entities_fetch_entities", {
+      entityType: "WorkflowDefinition", group: "STANDARD",
+      projections: [{ name: "id", aggregationFunction: "GROUP" }, { name: "name", aggregationFunction: "GROUP" }, { name: "oUId", aggregationFunction: "GROUP" }],
+      page: { limit: 500, offset: 2500 },
+    });
+    const defs6 = op("standard_entities", "standard_entities_fetch_entities", {
+      entityType: "WorkflowDefinition", group: "STANDARD",
+      projections: [{ name: "id", aggregationFunction: "GROUP" }, { name: "name", aggregationFunction: "GROUP" }, { name: "oUId", aggregationFunction: "GROUP" }],
+      page: { limit: 500, offset: 3000 },
+    });
+    const defs7 = op("standard_entities", "standard_entities_fetch_entities", {
+      entityType: "WorkflowDefinition", group: "STANDARD",
+      projections: [{ name: "id", aggregationFunction: "GROUP" }, { name: "name", aggregationFunction: "GROUP" }, { name: "oUId", aggregationFunction: "GROUP" }],
+      page: { limit: 500, offset: 3500 },
+    });
+    const defs8 = op("standard_entities", "standard_entities_fetch_entities", {
+      entityType: "WorkflowDefinition", group: "STANDARD",
+      projections: [{ name: "id", aggregationFunction: "GROUP" }, { name: "name", aggregationFunction: "GROUP" }, { name: "oUId", aggregationFunction: "GROUP" }],
+      page: { limit: 500, offset: 4000 },
+    });
+    const defs9 = op("standard_entities", "standard_entities_fetch_entities", {
+      entityType: "WorkflowDefinition", group: "STANDARD",
+      projections: [{ name: "id", aggregationFunction: "GROUP" }, { name: "name", aggregationFunction: "GROUP" }, { name: "oUId", aggregationFunction: "GROUP" }],
+      page: { limit: 500, offset: 4500 },
+    });
     // Existing registry rows
     const existing = op("storage_by_unifyapps", "storage_by_unifyapps_fetch_records", {
       object_type: "sentinel_workflow_registry",
       numberOfRecordsToFetch: "MULTIPLE",
-      page: { paginateBy: "OFFSET", limit: 2000, offset: 0 },
+      page: { paginateBy: "OFFSET", limit: 5000, offset: 0 },
     });
 
     // Work out which rows to create and which names to refresh
@@ -46,9 +75,15 @@ export default automation(
         type: "object",
         properties: {
           defs: { type: "array", title: "Defs", items: { type: "object" } },
+          defs1: { type: "array", title: "Defs 1", items: { type: "object" } },
           defs2: { type: "array", title: "Defs 2", items: { type: "object" } },
           defs3: { type: "array", title: "Defs 3", items: { type: "object" } },
           defs4: { type: "array", title: "Defs 4", items: { type: "object" } },
+          defs5: { type: "array", title: "Defs 5", items: { type: "object" } },
+          defs6: { type: "array", title: "Defs 6", items: { type: "object" } },
+          defs7: { type: "array", title: "Defs 7", items: { type: "object" } },
+          defs8: { type: "array", title: "Defs 8", items: { type: "object" } },
+          defs9: { type: "array", title: "Defs 9", items: { type: "object" } },
           existing: { type: "array", title: "Existing", items: { type: "object" } },
         },
       },
@@ -77,9 +112,9 @@ export default automation(
         },
         required: ["seen", "createdCount", "renamedCount", "toCreate", "toRename"],
       },
-      parameters: { defs: defs.objects, defs2: defs2.objects, defs3: defs3.objects, defs4: defs4.objects, existing: existing.objects },
+      parameters: { defs: defs.objects, defs1: defs1.objects, defs2: defs2.objects, defs3: defs3.objects, defs4: defs4.objects, defs5: defs5.objects, defs6: defs6.objects, defs7: defs7.objects, defs8: defs8.objects, defs9: defs9.objects, existing: existing.objects },
       code: [
-        "def D = []; ['defs','defs2','defs3','defs4'].each { k -> if (binding.hasVariable(k) && binding.getVariable(k) instanceof List) D.addAll(binding.getVariable(k)) }",
+        "def D = []; ['defs', 'defs1', 'defs2', 'defs3', 'defs4', 'defs5', 'defs6', 'defs7', 'defs8', 'defs9'].each { k -> if (binding.hasVariable(k) && binding.getVariable(k) instanceof List) D.addAll(binding.getVariable(k)) }",
         "def E = (binding.hasVariable('existing') && existing instanceof List) ? existing : []",
         "def byId = [:]",
         "E.each { r -> def p = (r instanceof Map && r.properties instanceof Map) ? r.properties : [:]; if (p.automationId) byId[p.automationId.toString()] = [id: r.id?.toString(), name: p.name?.toString()] }",

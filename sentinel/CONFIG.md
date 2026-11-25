@@ -55,13 +55,13 @@ Every Sentinel automation id goes into the Notifier's `triggerInputCondition` so
 
 | Automation | Id |
 |---|---|
-| sentinel · notifier | `6b071c56e61cdd44b6f3050f` (deployed v4) |
+| sentinel · notifier | `6b071c56e61cdd44b6f3050f` (deployed v5) |
 | sentinel · grouper | `6b0732e577940a61944d6d96` (deployed v1, every 2 min) |
 | sentinel · poster | |
 | sentinel · stuck-runs | |
 | sentinel · safety-checks | |
 | sentinel · follow-up | |
-| sentinel · registry-sync | `6b0732b877940a61944d6d70` (deployed v1, callable; seeds the registry in 4 pages of 500) |
+| sentinel · registry-sync | `6b0732b877940a61944d6d70` (deployed v2, callable; seeds the registry in 10 pages of 500; 4805 rows) |
 | sentinel · test-failure (test helper, must NOT be excluded) | `6b071bd0e61cdd44b6f30077` (deployed v0) |
 
 ## Built so far
@@ -92,7 +92,7 @@ Same four ids the existing Node Failure Alert poller excludes. Observed in the f
 | (no registry row) | `66af3ff4cd79b321cb478a37` | 758 |
 | (zero runs seen) | `6857dea0c42da15675ef3827` | 0 |
 
-Not excluded, decision pending: Generic Fetch Embeddings `6784b9216fb83f0972c5625d` (3032, "Method Not Allowed"), Knowledge Indexer With RBAC (InMemory) `69c413209c79a662475933c9` (758).
+Not excluded, and real: Generic Fetch Embeddings `6784b9216fb83f0972c5625d` (3032), Call Custom HTTP Application Embeddings `6a4e5f02a761fa39710318e4`, Knowledge Indexer With RBAC (InMemory) `69c413209c79a662475933c9` (758), Knowledge Indexer With RBAC `66af3ff4cd79b321cb478a37` all fail on `405 Method Not Allowed` from the embeddings HTTP endpoint (model `bedrock/toc_cohere_v4`, connection `6a704024843c6518a309222a`). One dependency failure cascading through the knowledge pipeline: the first real B2 finding.
 
 ## Payload shape as observed (differs from the docs)
 
@@ -103,7 +103,9 @@ Not excluded, decision pending: Generic Fetch Embeddings `6784b9216fb83f0972c562
 - The compiler type-checks pills strictly: trigger fields typed `long` are not assignable to `integer`, `number` or `string` inputs. Pass the whole trigger payload as one `object` parameter (`event: t`) and convert inside the code node.
 - Use Groovy, not JavaScript, for payload parsing: in GraalJS the platform's Map payloads read as empty objects.
 - `code_by_unifyapps_groovy` takes `input`, `output`, `parameters`, `code`, `compile_static`, `captureStdOutput` only (no `isAsync`).
-- `get_records` takes `sort` as an object, not a list. `trigger_workflow_run` takes no `host`.
+- HTTP node failures arrive as `output: {status_code, status, body}` with the message in `body`; thrown errors as `output: {message, rootCauseMessage, errorCode, errorId}`; a parent wraps a child's error as a stringified Groovy map in `message`.
+- `get_records` takes `sort` as an object, not a list, `limit` at most 200; `apply_record_edits` filter edits need a dryRun first (`wouldApply[0].matched`), then `expectedCount`; deletes stop at 500 rows per call.
+- `.length` on a node output is not a pill; use `count_records`. `update_records` with `isIn("id", <list pill>)` is the reliable way to mark a set of rows; `bulk_update_record_by_id` with `.map()` failed silently. `trigger_workflow_run` takes no `host`.
 - Set `settings.enableVariableLogging: true` or `inspect_workflow_run` returns no node inputs/outputs.
 
 ## Open
