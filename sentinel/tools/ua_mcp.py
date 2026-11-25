@@ -20,8 +20,11 @@ def tools(server):
     sid = session(server); res, _ = call(server, "tools/list", sid=sid, rid=2)
     return res.get("result", {}).get("tools", []), sid
 def tool_call(server, name, args):
-    args = {"host": HOST, **args}
-    sid = session(server); res, _ = call(server, "tools/call", {"name": name, "arguments": args}, sid=sid, rid=3)
+    sid = session(server)
+    res, _ = call(server, "tools/call", {"name": name, "arguments": {"host": HOST, **args}}, sid=sid, rid=3)
+    txt = json.dumps(res)
+    if 'Unrecognized key: "host"' in txt or "Unrecognized key: \\\"host\\\"" in txt:
+        res, _ = call(server, "tools/call", {"name": name, "arguments": args}, sid=sid, rid=4)
     return res
 if __name__ == "__main__":
     cmd = sys.argv[1]

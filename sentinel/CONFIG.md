@@ -55,12 +55,33 @@ Every Sentinel automation id goes into the Notifier's `triggerInputCondition` so
 
 | Automation | Id |
 |---|---|
-| sentinel · notifier | |
+| sentinel · notifier | `6b071c56e61cdd44b6f3050f` (deployed v3) |
 | sentinel · grouper | |
 | sentinel · poster | |
 | sentinel · stuck-runs | |
 | sentinel · safety-checks | |
 | sentinel · follow-up | |
+| sentinel · test-failure (test helper, must NOT be excluded) | `6b071bd0e61cdd44b6f30077` (deployed v0) |
+
+## Built so far
+
+| Asset | Id | Notes |
+|---|---|---|
+| Object `sentinel_failed_run` (Sentinel Failed Run) | `sentinel_failed_run` | 22 fields, unique index on executionId, indexes on state, fingerprint, rootExecutionId. Definition: `objects/sentinel_failed_run.json` |
+| `sentinel · notifier` | `6b071c56e61cdd44b6f3050f` | Trigger → Groovy parse → create record. Code: `automations/sentinel-notifier.ts`. Verified: failure to record in about 100 ms. |
+| `sentinel · test-failure` | `6b071bd0e61cdd44b6f30077` | Callable; one Groovy node throws `SENTINEL_TEST_FAILURE: <reason>`. Fire with `trigger_workflow_run` runType `workflow`. |
+
+## Payload shape as observed (differs from the docs)
+
+`error[]` holds one entry per failing node, each `{id: <nodeId>, type: "inputs" | "outputs", output: {...}}`. The `inputs` entry carries the node's inputs; the `outputs` entry carries the error: `message`, `rootCauseMessage`, `errorCode` (-1 for thrown exceptions), `errorId` (per occurrence, never in the fingerprint). HTTP nodes are expected to carry `output.body.error.{message, code, status}` (from the Main screenshot; not yet seen on Finance). The parser handles both. Top-level keys seen: automationId, executionId, nodeId, error, inputs, isTestRun, retryCount, startTime, endTime, version. `userId`, `projectId`, `rootExecutionId`, `parentExecutionId` were absent on an API-triggered callable run; treat them as optional.
+
+## Build notes (DSL gotchas)
+
+- The compiler type-checks pills strictly: trigger fields typed `long` are not assignable to `integer`, `number` or `string` inputs. Pass the whole trigger payload as one `object` parameter (`event: t`) and convert inside the code node.
+- Use Groovy, not JavaScript, for payload parsing: in GraalJS the platform's Map payloads read as empty objects.
+- `code_by_unifyapps_groovy` takes `input`, `output`, `parameters`, `code`, `compile_static`, `captureStdOutput` only (no `isAsync`).
+- `get_records` takes `sort` as an object, not a list. `trigger_workflow_run` takes no `host`.
+- Set `settings.enableVariableLogging: true` or `inspect_workflow_run` returns no node inputs/outputs.
 
 ## Open
 

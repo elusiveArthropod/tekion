@@ -1,0 +1,36 @@
+{"steps":[{"tool":"create_object","args":{
+ "name":"Sentinel Failed Run","id":"sentinel_failed_run","pluralName":"Sentinel Failed Runs",
+ "description":"One row per failed automation run on the Finance platform, written by sentinel-notifier from the On Automation Run Failed trigger. Append-only evidence; never edited by the agent.",
+ "tags":["alert-monitoring"],
+ "fields":{
+  "executionId":{"type":"string","title":"Execution Id"},
+  "automationId":{"type":"string","title":"Automation Id"},
+  "automationName":{"type":"string","title":"Automation Name"},
+  "rootExecutionId":{"type":"string","title":"Root Execution Id"},
+  "parentExecutionId":{"type":"string","title":"Parent Execution Id"},
+  "nodeId":{"type":"string","title":"Failing Node Id"},
+  "exceptionClass":{"type":"string","title":"Exception Class"},
+  "errorMessage":{"type":"string","title":"Error Message"},
+  "errorRaw":{"type":"string","title":"Error Raw (JSON, headers stripped, capped)"},
+  "errorTruncated":{"type":"boolean","title":"Error Truncated"},
+  "retryCount":{"type":"integer","title":"Retry Count"},
+  "isTestRun":{"type":"boolean","title":"Test Run"},
+  "userId":{"type":"string","title":"User Id"},
+  "projectId":{"type":"string","title":"Project Id"},
+  "startTime":{"type":"integer","title":"Start Time (epoch ms)"},
+  "endTime":{"type":"integer","title":"End Time (epoch ms)"},
+  "runUrl":{"type":"string","title":"Run URL"},
+  "fingerprint":{"type":"string","title":"Fingerprint"},
+  "issueId":{"type":"string","title":"Issue Id"},
+  "incidentId":{"type":"string","title":"Incident Id"},
+  "state":{"type":"string","title":"State","enum":["new","grouped","posted","dropped"]},
+  "ingestedAt":{"type":"integer","title":"Ingested At (epoch ms)"}
+ },
+ "required":["executionId","automationId","state"],
+ "fieldOrder":["executionId","automationId","automationName","state","fingerprint","issueId","incidentId","nodeId","exceptionClass","errorMessage","errorRaw","errorTruncated","rootExecutionId","parentExecutionId","retryCount","isTestRun","userId","projectId","startTime","endTime","runUrl","ingestedAt"],
+ "indexes":[
+  {"name":"uq_execution_id","fields":[{"field":"executionId","direction":"asc"}],"unique":true},
+  {"name":"ix_state","fields":[{"field":"state","direction":"asc"}]},
+  {"name":"ix_fingerprint","fields":[{"field":"fingerprint","direction":"asc"}]},
+  {"name":"ix_root_execution","fields":[{"field":"rootExecutionId","direction":"asc"}]}
+ ]}}]}
