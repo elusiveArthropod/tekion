@@ -1,0 +1,77 @@
+{
+  "ok": true,
+  "source": "catalogue",
+  "appName": "platform_by_unifyapps",
+  "resourceName": "platform_by_unifyapps_on_automation_run_failed",
+  "displayName": "On Automation Run Failed",
+  "description": "On Automation Run Failed",
+  "resourceType": "TRIGGER",
+  "nodeTestDisabled": false,
+  "hasLoader": false,
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "triggerInputCondition": {
+        "type": "object"
+      }
+    }
+  },
+  "inputLayout": {
+    "triggerInputCondition": {
+      "ui:title": "Trigger conditions",
+      "ui:description": "Only trigger events matching specified condition will be processed.",
+      "ui:field": "FilterConditionsField",
+      "ua:addMappers": false
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "automationId": {
+        "type": "string"
+      },
+      "executionId": {
+        "type": "string"
+      },
+      "rootExecutionId": {
+        "type": "string"
+      },
+      "parentExecutionId": {
+        "type": "string"
+      },
+      "isTestRun": {
+        "type": "boolean"
+      },
+      "error": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "startTime": {
+        "type": "integer"
+      },
+      "endTime": {
+        "type": "integer"
+      },
+      "nodeId": {
+        "type": "string"
+      },
+      "userId": {
+        "type": "long"
+      },
+      "projectId": {
+        "type": "long"
+      },
+      "retryCount": {
+        "type": "long"
+      },
+      "inputs": {
+        "type": "object"
+      },
+      "version": {
+        "type": "int"
+      }
+    }
+  }
+}
