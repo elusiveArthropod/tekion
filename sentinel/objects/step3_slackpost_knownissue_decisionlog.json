@@ -1,0 +1,48 @@
+{"steps":[
+{"tool":"create_object","args":{"name":"Sentinel Slack Post","id":"sentinel_slack_post","pluralName":"Sentinel Slack Posts","tags":["alert-monitoring"],
+ "description":"Every message Sentinel posts to Slack, so a thread ts maps back to its Issue or Incident.",
+ "fields":{
+  "channelId":{"type":"string","title":"Channel Id"},
+  "ts":{"type":"string","title":"Message Ts"},
+  "threadTs":{"type":"string","title":"Thread Ts (root)"},
+  "kind":{"type":"string","title":"Kind","enum":["issue","repeat","escalation","reopen","incident","question","answer","note"]},
+  "issueId":{"type":"string","title":"Issue Id"},
+  "incidentId":{"type":"string","title":"Incident Id"},
+  "postedBy":{"type":"string","title":"Posted By","enum":["poster","agent","handler"]},
+  "postedAt":{"type":"integer","title":"Posted At"},
+  "text":{"type":"string","title":"Text (first 500 chars)"}
+ },
+ "required":["channelId","ts","kind"],
+ "indexes":[{"name":"uq_ts","fields":[{"field":"ts","direction":"asc"}],"unique":true},{"name":"ix_issue","fields":[{"field":"issueId","direction":"asc"}]}]}},
+{"tool":"create_object","args":{"name":"Sentinel Known Issue","id":"sentinel_known_issue","pluralName":"Sentinel Known Issues","tags":["alert-monitoring"],
+ "description":"Knowledge Sentinel learns from humans: which fingerprints are expected or known, with the reason and who said so.",
+ "fields":{
+  "fingerprint":{"type":"string","title":"Fingerprint"},
+  "automationId":{"type":"string","title":"Automation Id"},
+  "type":{"type":"string","title":"Type","enum":["expected","known","working","excluded"]},
+  "reason":{"type":"string","title":"Reason"},
+  "atlasLink":{"type":"string","title":"Atlas Link"},
+  "etaAt":{"type":"integer","title":"ETA (epoch ms)"},
+  "setBySlackId":{"type":"string","title":"Set By (Slack id)"},
+  "setAt":{"type":"integer","title":"Set At"},
+  "reviewAfter":{"type":"integer","title":"Review After"},
+  "active":{"type":"boolean","title":"Active"}
+ },
+ "required":["fingerprint","type"],
+ "indexes":[{"name":"ix_fingerprint","fields":[{"field":"fingerprint","direction":"asc"}]}]}},
+{"tool":"create_object","args":{"name":"Sentinel Decision Log","id":"sentinel_decision_log","pluralName":"Sentinel Decision Log","tags":["alert-monitoring"],
+ "description":"Who decided what and why, for every state change made by a human, the agent or the pipeline.",
+ "fields":{
+  "issueId":{"type":"string","title":"Issue Id"},
+  "incidentId":{"type":"string","title":"Incident Id"},
+  "action":{"type":"string","title":"Action"},
+  "reason":{"type":"string","title":"Reason"},
+  "decidedBy":{"type":"string","title":"Decided By","enum":["human","agent","code"]},
+  "actorSlackId":{"type":"string","title":"Actor Slack Id"},
+  "source":{"type":"string","title":"Source","enum":["thread","button","sweeper","pipeline","tool"]},
+  "at":{"type":"integer","title":"At"},
+  "payload":{"type":"string","title":"Payload (JSON)"}
+ },
+ "required":["action","decidedBy","at"],
+ "indexes":[{"name":"ix_issue","fields":[{"field":"issueId","direction":"asc"}]}]}}
+]}
