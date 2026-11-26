@@ -16,7 +16,7 @@ TERMINAL = {"PASS", "FAIL", "SKIPPED"}
 ICON = {"PENDING": "⬜", "RUNNING": "⏳", "PASS": "✅", "FAIL": "❌", "AUTH_EXPIRED": "⚠️", "SKIPPED": "⏭️"}
 LABEL = {
     "SB": "Solution Builder — build the vendor onboarding + purchase request system, trace clean, 8 functional checks",
-    "WFB": "Workflow Builder agent — explain the test automation, add one node, remove it, traces clean",
+    "WFB": "Workflow Builder agent — on a throwaway automation: explain it, add one node, remove it, traces clean",
     "FDE-UI": "AI FDE — copilot panel opens with conversation starters",
     "FDE-QA": "AI FDE — two platform how-to questions answered, traces clean",
     "FDE-CRUD": "AI FDE — create a test object, add/update/delete records, delete it, traces clean",

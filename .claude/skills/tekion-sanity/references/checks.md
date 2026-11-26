@@ -4,7 +4,7 @@ Each check is run by its own subagent, in parallel. `<base>` is the platform URL
 
 Common rules:
 
-- API calls use the API token via `scripts/ua_api_hdr.sh` (`x-ua-at` header). Browser steps use the browser session cookie via `scripts/ua_probe.mjs`. They are different credentials; see `platform-api.md` → AUTH MECHANISM.
+- Browser steps use `scripts/ua_probe.mjs` and API calls use `scripts/ua_api.sh`, both with the browser session cookie. `scripts/ua_api_hdr.sh` with an `x-ua-at` token is the fallback only when the main session's verification step found the cookie refused by `/api/*`; the agent prompt says which applies.
 - Time budgets are hard. Exceeding one is FAIL with note "timed out after N min".
 - A login redirect or HTTP 401/403 at any step is AUTH_EXPIRED, not FAIL.
 - Every created asset is named `sanity-<env>-<YYYYMMDD-HHMM>` so it can be found and deleted.
@@ -85,35 +85,42 @@ Acceptance per question (all three):
 
 PASS: both questions accepted. FAIL: either not. Quote the reply (first 40 lines) in the evidence.
 
-## WFB: Workflow Builder agent (inside the automation editor)
+## WFB: Workflow Builder agent (inside a throwaway automation's editor)
 
 Budget: 20 min. Agent id `e_6aa19955aeb9ea1371af57c7`; sessions `<base>/p/0/ai-agents/e_6aa19955aeb9ea1371af57c7/observability/sessions/all`.
 
-Needs from inputs: the URL of a **test automation** in the Sanity project that this check may modify (a permanent one, kept for sanity; it must not be a live automation). The Workflow Builder is used from inside that automation's editor, not as a standalone chat.
+The Workflow Builder is used from inside an automation's editor, not as a standalone chat. The check creates its own automation to work on, so no existing automation is ever touched.
+
+Setup:
+
+1. Create a new automation named `sanity-<env>-<stamp>-wfb` (UI "new automation" flow or the `WorkflowDefinition` entity, **discover** which and record it) with a manual trigger and two steps: a Log step writing "step one", then a Delay step of 1 second. Do not activate or publish it. Open its editor with `ua_probe.mjs`, snapshot the node list (`text` on the canvas or the definition entity), screenshot.
 
 Part A, understand:
 
-1. Open the test automation's editor URL with `ua_probe.mjs`. Snapshot its definition: the node list (`text` on the canvas or the definition entity, **discover** which; sentinel reads automations as entityType `WorkflowDefinition` through `standard_entities_fetch_entities`). Screenshot.
 2. Open the Workflow Builder agent panel inside the editor (**discover** the button; record the selector).
-3. Ask: `Explain this automation: its trigger, each node in order, and what each node changes.`
-4. Ask one detail question that has a checkable answer, e.g. `What does the node "<second node name>" use as its input, and where does that value come from?`
-5. Accept Part A if both replies arrive within 4 min each, the explanation names the real trigger and every real node in order, the detail answer matches the node's configuration, and neither reply contains error text.
+3. Ask: `Explain this automation: its trigger, each node in order, and what each node does.`
+4. Ask: `What does the Delay node wait for, and what runs before it?`
+5. Accept Part A if both replies arrive within 4 min each, the explanation names the manual trigger and both nodes in order, the detail answer says 1 second and names the Log step, and neither reply contains error text.
 
 Part B, make (one CRUD operation on the automation):
 
-6. Ask: `Add a new node after "<last node name>" that logs the text "sanity node ok". Do not change any existing node and do not activate or publish the automation.`
-7. Verify in the editor and in the definition that exactly one new node exists at the end, of a log type, with that text, and that every pre-existing node is unchanged (diff against the step 1 snapshot). The agent's own "done" message is not verification.
-8. Remove the added node (ask the agent `Remove the node you just added`, then verify; if the agent cannot, remove it in the editor) so the test automation is back to its snapshot. Confirm the diff is empty.
+6. Ask: `Add a new node after the Delay node that logs the text "sanity node ok". Do not change any existing node and do not activate or publish the automation.`
+7. Verify in the editor and in the definition that exactly one new node exists at the end, of a log type, with that text, and that the trigger and the two original nodes are unchanged (diff against the step 1 snapshot). The agent's own "done" message is not verification.
+8. Ask: `Remove the node you just added.` Verify the definition is back to the snapshot. If the agent cannot, note it; the whole automation is deleted next anyway.
+
+Cleanup:
+
+9. Delete the automation and confirm it is gone.
 
 Parallel: the session-trace monitor from the common rules, on the Workflow Builder sessions page, for the whole check.
 
-PASS: Part A accepted, the node added exactly as asked, nothing else changed, the automation restored, no error traces in this run's sessions.
-FAIL: a wrong or missing explanation (naming nodes that do not exist is a FAIL), the node not added or added wrongly, any other node changed, restore failed (say so, it is now a live change in the test automation), or an error trace. Evidence: the agent session URL from observability, before/after screenshots, the diff.
-SKIPPED only if the user says the Workflow Builder is absent in this tenant or no test automation exists.
+PASS: automation created, Part A accepted, the node added exactly as asked with nothing else changed, no error traces in this run's sessions, automation deleted.
+FAIL: setup failed, a wrong or missing explanation (naming nodes that do not exist is a FAIL), the node not added or added wrongly, any original node changed, or an error trace. Removal failing in step 8 is a note, not a FAIL, since the automation is deleted. Deletion failing is a PASS with "not deleted: <url>" in the note. Evidence: the agent session URL from observability, before/after screenshots, the diff.
+SKIPPED only if the user says the Workflow Builder is absent in this tenant.
 
 ## FDE-CRUD: AI FDE create, read, update, delete on a test object and its records
 
-Budget: 20 min. Runs after FDE-QA on the same surface. Every object is created inside the Sanity project and named with the run stamp; the check diffs the project's object list before and after so a wrong edit outside it is caught, not assumed.
+Budget: 20 min. Runs after FDE-QA on the same surface. The check creates its own object, named with the run stamp, and only ever refers to it by that name; it snapshots the tenant's object list before and after so an edit to anything else is caught, not assumed.
 
 Default target: a **custom object with records** (the FDE's goal text says it acts on Storage objects). If the first run shows the FDE cannot create objects, record in `platform-api.md` what it can create and switch the default to that.
 
@@ -121,7 +128,7 @@ Queries, in order, each with a 4 min budget and the same reply-capture rules as 
 
 | # | Query | Verify |
 |---|---|---|
-| C1 | `In project "<Sanity project>", create an object named "sanity_<stamp>" with fields: name (text), amount (number), status (text).` | object exists with the three fields |
+| C1 | `Create an object named "sanity_<stamp>" with fields: name (text), amount (number), status (text).` | object exists with the three fields |
 | C2 | `Add two records to "sanity_<stamp>": name "alpha", amount 10, status "open"; and name "beta", amount 20, status "closed".` | two records with those values |
 | R | `List all records of "sanity_<stamp>" with status "open".` | reply contains alpha only |
 | U | `Update the record named "alpha" in "sanity_<stamp>": set amount to 15 and status to "closed".` | alpha has amount 15, status closed; beta unchanged |
@@ -132,7 +139,7 @@ If the FDE asks for confirmation before a write, answer `Yes, proceed.` once; a 
 
 Parallel: the session-trace monitor from the common rules, on the AI FDE sessions page, for FDE-QA and FDE-CRUD together.
 
-PASS: all six verified, the project's object list diff shows only the test object appearing and disappearing, no error traces in this run's sessions.
+PASS: all six verified, the object list diff shows only the test object appearing and disappearing, no error traces in this run's sessions.
 FAIL: any step unverified, any change outside the test object, an error trace, or any error. If the FDE refuses writes by design, report FAIL with the refusal quoted; the user decides whether to reduce the check to read-only. If D2 fails, delete the object by API or UI and say so.
 
 ## EVAL: Evaluation create and run

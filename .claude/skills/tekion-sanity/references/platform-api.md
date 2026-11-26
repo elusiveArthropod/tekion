@@ -1,6 +1,6 @@
 # UnifyApps platform: verified API calls and discovered UI details
 
-All `/api/*` calls authenticate with the API token header, not the browser cookie. `scripts/ua_api_hdr.sh <base> <token-file> <METHOD> <path> [json-body]` sends the API token as `x-ua-at` (see AUTH MECHANISM below; `ua_api.sh` with a cookie returns 401 and is kept only for reference). Exit 2 means the token is dead.
+API calls: `scripts/ua_api.sh <base> <cookie-file> <METHOD> <path> [json-body]` with the browser session cookie (default), or `scripts/ua_api_hdr.sh <base> <token-file> ...` with an `x-ua-at` token (fallback; see AUTH MECHANISM). Exit 2 means the credential is dead.
 
 ## Verified (from the eval-setup work, Tekion P2P assistant)
 
@@ -31,7 +31,7 @@ IDs look like `e_<24 hex>`; the UI puts them in `location.pathname`.
 - Base: `https://finance.toc.tekioncloud.xyz`
 - AI Teams (Solution Builder) team: `/p/0/ai-teams/e_69a84345925f136d9c9e437e`; sessions: `.../observability/sessions/all`
 - FDE agent config: `/p/0/ai-agents/e_ai_fde_agent/configuration/instructions`; sessions: `/p/0/ai-agents/e_ai_fde_agent/observability/sessions/all`
-- Workflow Builder agent: `e_6aa19955aeb9ea1371af57c7`; sessions: `/p/0/ai-agents/e_6aa19955aeb9ea1371af57c7/observability/sessions/all`. Used from inside an automation's editor (panel selector: TBD).
+- Workflow Builder agent: `e_6aa19955aeb9ea1371af57c7`; sessions: `/p/0/ai-agents/e_6aa19955aeb9ea1371af57c7/observability/sessions/all`. Used from inside an automation's editor (panel selector: TBD). The sanity check creates its own automation to use it on (create flow: TBD).
 - Evaluation: `/p/0/evaluation/...`
 
 ## To discover on the first run (record here once found)
@@ -48,14 +48,11 @@ IDs look like `e_<24 hex>`; the UI puts them in `location.pathname`.
 
 Record exact selectors, bodies and the date verified. Replace TBD; do not append duplicates.
 
-## AUTH MECHANISM (verified 2026-11-24, Pre-prod finance)
+## AUTH MECHANISM (verified 2026-11-24 in part; corrected 2026-11-26)
 
-The credential the skill calls a "session cookie" is really TWO different things; a run needs both:
-
-1. **API token** — value like `2_<uuid>_00`. Authenticates `/api/*` ONLY as the request header `x-ua-at: <token>`. As a `Cookie:` (any name) it returns 401. Use `scripts/ua_api_hdr.sh <base> <token-file> <METHOD> <path> [body]` (header variant of `ua_api.sh`). Verify with `POST /api/entity/dataset {"page":{"limit":1,"offset":0}}` → 200.
-2. **Browser session cookie** — a separate HttpOnly cookie (name/value NOT the `x-ua-at` value). Required for every HTML/SPA route (`/p/0/...`). Without it, and even with `x-ua-at` injected as an extra header on all browser requests, the page redirects server-side to `/login` and fires zero API calls. `ua_probe.mjs` cannot authenticate the UI without this cookie. Collect it from DevTools → Network → any request → full `Cookie:` request header.
-
-So with the API token alone: entity CRUD works; nothing UI-driven works.
+- **Browser session cookie** (the full `Cookie:` request header from DevTools on any platform page) authenticates every HTML/SPA route (`/p/0/...`). Without it, pages redirect server-side to `/login`. `ua_probe.mjs` needs it.
+- The platform UI calls `/api/*` with that same cookie (same-origin fetch, no token), so `ua_api.sh` with the cookie file is the default for API calls. **To confirm on the next run:** the 24 Nov test that reported "cookie → 401 on /api" used the API token value as a cookie, not the real browser cookie, so it proved nothing about the browser cookie. Record the result of the verification step here.
+- **API token** `2_<uuid>_00`, sent as header `x-ua-at`, authenticates `/api/*` on its own (`ua_api_hdr.sh`). It does not work as a cookie and does not open UI pages. It is a fallback, asked for only if the browser cookie is refused by `/api/*`.
 
 ## Verified entity shapes (API token, 2026-11-24)
 
