@@ -32,7 +32,7 @@ Everything the build needs to know about the tenant, in one place. Secrets never
 
 | Need | Connector / operation |
 |---|---|
-| Real-time failed run (Notifier trigger) | `appEvent("platform_by_unifyapps", "platform_by_unifyapps_on_automation_run_failed")`. Payload: automationId, executionId, rootExecutionId, parentExecutionId, isTestRun, nodeId, error[], startTime, endTime, userId, projectId, retryCount, inputs, version. Filter with `triggerInputCondition`. |
+| Failed runs (Notifier, v13) | Scheduled every 5 min. Query A: `analytics_by_unifyapps_query_reports` on `WORKFLOW_EXECUTION`, `STATUS = FAILED`, `RUN_TIME_TYPE = DEFAULT` (deployed runs only; IN_MEMORY agent/test runs excluded), window now-6 min. Query B: `WORKFLOW_NODE_EXECUTION`, `STATUS = FAILED`, `EXECUTION_INSTANCE_ID IN` those ids, with `OUTPUTS`. One record per run, primary node = earliest ENTRY_TIME, every failing node in errorRaw. The real-time trigger `platform_by_unifyapps_on_automation_run_failed` was dropped on 26 Nov: 12k events in 10 h, almost all IN_MEMORY. |
 | Failed / in-progress run lists (Flow D, Flow E) | `analytics_by_unifyapps` / `analytics_by_unifyapps_query_reports`, entityType `WORKFLOW_EXECUTION`, filter `STATUS`, `timeFilter {since, until}` (see `reference/existing-node-failure-alert-finance.ts`) |
 | Automation names and owners (registry seed) | `standard_entities` / `standard_entities_fetch_entities`, entityType `WorkflowDefinition`, projections name, id, oUId |
 | Automation details | `standard_entities` / `standard_entities_get_automation_details` |
@@ -55,7 +55,7 @@ Every Sentinel automation id goes into the Notifier's `triggerInputCondition` so
 
 | Automation | Id |
 |---|---|
-| sentinel · notifier | `6b071c56e61cdd44b6f3050f` (deployed v6, paused) |
+| sentinel · notifier | `6b071c56e61cdd44b6f3050f` (deployed v13, paused) |
 | sentinel · grouper | `6b0732e577940a61944d6d96` (deployed v1, every 2 min) |
 | sentinel · poster | `6b07c3cfe61cdd44b6fba9ee` (deployed v1, every 2 min, only Slack writer) |
 | sentinel · button-handler | `6b07c40fe61cdd44b6fbaf40` (Slack button clicks → tool-record-answer) |
@@ -79,9 +79,9 @@ Pause/resume: `POST https://finance.toc.tekioncloud.xyz/api/workflow-definition/
 platform trigger "On Automation Run Failed"
         │  one event per failed run
         ▼
-[1] sentinel · notifier  ──insert──▶  sentinel_failed_run (state = new)
-        goal: lose nothing. Store the raw failure in <150 ms. No decisions, no Slack, no AI.
-        filters: test runs, platform-internal runs (no automationId), itself, 4 known-noise automations.
+[1] sentinel · notifier  ──bulk insert──▶  sentinel_failed_run (state = new)
+        goal: lose nothing. Every 5 min, store every deployed run that FAILED in the last 6 min with its error. No decisions, no Slack, no AI.
+        filters: RUN_TIME_TYPE DEFAULT only (no builder tests, no in-memory agent runs), itself, 4 known-noise automations.
 
         every 2 min
         ▼
