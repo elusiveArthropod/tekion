@@ -12,25 +12,30 @@ Common rules:
 
 ## SB: Solution Builder (AI Teams)
 
-Budget: 30 min for the build, 5 min for the functional check.
+Budget: 45 min for the build, 10 min for the functional check.
 
-Fixed prompt (do not vary between runs unless the user overrides it, otherwise results are not comparable):
+Fixed prompt (do not vary between runs unless the user overrides it, otherwise results are not comparable). It is deliberately a medium-size system, not a single form, so that a regression in data modelling, relations, roles, workflow logic or dashboards shows up:
 
-> Build an internal expense reimbursement tracker. Employees submit an expense with title, amount, category (Travel, Meals, Equipment, Other), date and a note. Managers see a list of all expenses with a status filter (Submitted, Approved, Rejected) and can approve or reject each one with a comment. Show a summary card with the total approved amount. Name the solution "sanity-<env>-<stamp>".
+> Build an internal "Vendor Onboarding & Purchase Request" system. Entities: Vendor (name, category, country, status Draft/Under Review/Approved/Blocked, contact email), Purchase Request (title, vendor, amount, currency, needed-by date, justification, status Submitted/Manager Approved/Finance Approved/Rejected), and Approval Comment (request, author, text, timestamp). Roles: Requester can create and view their own requests; Manager sees all requests from their team and approves or rejects with a comment; Finance sees Manager-Approved requests above 5000 and gives final approval. A request can only be submitted against an Approved vendor. Pages: vendor list with status filter and a vendor detail page; request list with status and vendor filters; a request detail page showing the approval comment trail; a dashboard with total approved amount this month, requests pending per status, and top 5 vendors by approved amount. Send an in-app notification to the requester when their request's status changes. Name the solution "sanity-<env>-<stamp>".
+
+Functional assertions on the generated app (all must hold):
+
+1. vendor list page loads and has a status filter;
+2. create a vendor `sanity vendor` with status Approved; it appears in the list;
+3. create a purchase request `sanity request`, amount 100, against that vendor; it appears with status Submitted;
+4. a request against a Draft vendor is refused or not offered (create a second vendor in Draft and try);
+5. the request detail page shows a comment trail section;
+6. the dashboard page loads and shows the pending-per-status figure including the new request.
 
 Procedure:
 
 1. Open `<base>/p/0/ai-teams/<teamId>` with `ua_probe.mjs`. Confirm the team page loads (not login, no `apiErrors`). **Discover** the prompt input selector for starting a new build; submit the fixed prompt with `fill` + `press Enter` (or the send button).
 2. Record the new session. Open `<base>/p/0/ai-teams/<teamId>/observability/sessions/all` and locate the session started in the last few minutes (`GetAllSessions` body pattern in `platform-api.md` once captured). Save its URL as evidence.
 3. Poll the session every 2 min with `ua_probe.mjs` (`text` on the trace list). Collect any step whose status is error, any text matching `error|exception|failed|timed out`, and the final session state.
-4. When the build completes, open the generated app (link from the session or the team's solutions list). Functional check, via `ua_probe.mjs` actions:
-   - the app's main page loads with a list/table and a create action visible;
-   - create one expense (title `sanity check`, amount 12.5, category Travel);
-   - the new row appears in the list;
-   - the status filter exists.
+4. When the build completes, open the generated app (link from the session or the team's solutions list) and run the six functional assertions above with `ua_probe.mjs` actions. Record which ones passed in the note, e.g. `functional 5/6, failed: #4 draft-vendor guard`.
 5. Delete the solution (UI or API, **discover**). If deletion is not possible, say so in the note.
 
-PASS: build completed within budget, no error steps in the session trace, all four functional assertions true.
+PASS: build completed within budget, no error steps in the session trace, all six functional assertions true.
 FAIL: build did not complete, or any error step in the trace, or any functional assertion false. Note must say which. The session URL is the primary evidence; an error step inside it is also a lead for ALERTS (same agent/knowledge/application may be failing elsewhere).
 
 ## FDE-UI: AI FDE copilot panel (the surface users actually see)
@@ -67,6 +72,46 @@ Acceptance per question (all three):
 - it mentions at least two of the expected terms: Q1 `connector|connection|REST|API|authentication|endpoint`; Q2 `schedule|trigger|cron|daily|automation|time zone`.
 
 PASS: both questions accepted. FAIL: either not. Quote the reply (first 40 lines) in the evidence.
+
+## WFB: Workflow Builder agent (understand, then make)
+
+Budget: 15 min. Needs from inputs: the Workflow Builder agent id or URL, the Sanity project name or id, and the name of one existing automation in that project to explain (default: the one created by the previous sanity run if it still exists, else any automation the user names).
+
+Part A, understand:
+
+1. Open the Workflow Builder agent surface (**discover** the URL from the agent id; same patterns as the FDE: config page under `/p/0/ai-agents/<id>/...`, chat on `/test?chatId=new` or a copilot panel). Capture a screenshot.
+2. Ask: `Explain what the automation "<name>" in project "<Sanity project>" does: its trigger, each step in order, and what it changes.`
+3. Accept if the reply arrives within 4 min, names the trigger type and at least one step that really exists in that automation (verify against the automation's configuration page or entity), and contains no error text.
+
+Part B, make:
+
+4. Ask: `In project "<Sanity project>", create an automation named "sanity-<env>-<stamp>-wfb" with a scheduled trigger that runs daily at 09:00 IST and a single step that writes the text "sanity ok" to the run log. Do not add any other step and do not activate it.`
+5. Verify by API or UI (**discover** the automation entity type or the project's automation list) that an automation with that exact name now exists in the Sanity project, has a schedule trigger and one step, and is not active. Snapshot the project's automation list before step 4 and diff after: nothing else may have changed.
+6. Delete the created automation and confirm it is gone.
+
+PASS: both parts accepted, diff clean, cleanup confirmed.
+FAIL: a reply missing or wrong (Part A names steps that do not exist is a FAIL, not a soft pass), the automation not created as specified, anything else changed in the project, or an error. Evidence: the agent session link, the created automation's URL, the before/after diff.
+SKIPPED only if the user says the Workflow Builder is absent in this tenant.
+
+## FDE-CRUD: AI FDE create, read, update, delete
+
+Budget: 15 min. Runs after FDE-QA on the same surface. Every object is created inside the Sanity project and named with the run stamp; the check diffs the project before and after so a wrong edit outside it is caught, not assumed.
+
+Default object: an automation (the FDE can scaffold one). If the first run shows the FDE cannot create automations, record in `platform-api.md` which object types it can create and switch the default to the simplest of them.
+
+Queries, in order, each with a 4 min budget and the same reply-capture rules as FDE-QA:
+
+| # | Query | Verify (API or UI, not the agent's word) |
+|---|---|---|
+| C | `In project "<Sanity project>", create an automation named "sanity-<env>-<stamp>-fde" with a manual trigger and one step that logs "created by sanity". Do not activate it.` | the automation exists, manual trigger, one step, inactive |
+| R | `What does the automation "sanity-<env>-<stamp>-fde" in project "<Sanity project>" do?` | reply names the manual trigger and the log step |
+| U | `Rename the automation "sanity-<env>-<stamp>-fde" in project "<Sanity project>" to "sanity-<env>-<stamp>-fde-renamed" and set its description to "sanity update ok".` | name and description changed, nothing else changed |
+| D | `Delete the automation "sanity-<env>-<stamp>-fde-renamed" in project "<Sanity project>".` | the automation no longer exists |
+
+If the FDE asks for confirmation before a write, answer `Yes, proceed.` once; a second confirmation request counts as the step not completing.
+
+PASS: all four verified and the before/after diff of the Sanity project shows only the expected changes.
+FAIL: any step unverified, any change outside the named object, or any error. If the FDE refuses writes by design, report FAIL with the refusal text quoted; the user decides whether to reduce the check to read-only.
 
 ## EVAL: Evaluation create and run
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Run-state tracker for a Tekion sanity run. One JSON file per run, rendered for Slack.
 
-  sanity_state.py <state.json> init --env PRE-PROD --base-url URL --checks "SB,FDE-UI,FDE-QA,EVAL,ALERTS" [--window-min 60]
-  sanity_state.py <state.json> set  <check> <status> ["note"] [--evidence URL]   status: PENDING RUNNING PASS FAIL AUTH_EXPIRED SKIPPED
+  sanity_state.py <state.json> init --env PRE-PROD --base-url URL --checks "SB,WFB,FDE-UI,FDE-QA,FDE-CRUD,EVAL,ALERTS" [--window-min 60]
+  sanity_state.py <state.json> set  <check> <status> ["note"] [--evidence URL]   status: PENDING RUNNING PASS FAIL AUTH_EXPIRED SKIPPED  (times render in IST)
   sanity_state.py <state.json> slack-ts <ts>          remember the Slack root post ts
   sanity_state.py <state.json> render [--plan|--progress|--final]   print a Slack-formatted message
   sanity_state.py <state.json> remaining                print checks not yet in a terminal state
@@ -13,15 +13,24 @@ import json, sys, argparse, datetime as dt
 TERMINAL = {"PASS", "FAIL", "SKIPPED"}
 ICON = {"PENDING": "⬜", "RUNNING": "⏳", "PASS": "✅", "FAIL": "❌", "AUTH_EXPIRED": "⚠️", "SKIPPED": "⏭️"}
 LABEL = {
-    "SB": "Solution Builder: build from fixed prompt, session clean, app works",
-    "FDE-UI": "AI FDE: agent configured, copilot panel opens with conversation starters",
-    "FDE-QA": "AI FDE: two platform questions answered",
-    "EVAL": "Evaluation: create dataset + cases, run experiment, scores present",
-    "ALERTS": "Alert channel: new automation failures since start, with root cause",
+    "SB": "Solution Builder — build a vendor onboarding + purchase request app, trace clean, 6 functional checks",
+    "WFB": "Workflow Builder agent — explain an existing automation, then create one in the Sanity project",
+    "FDE-UI": "AI FDE — copilot panel opens with conversation starters",
+    "FDE-QA": "AI FDE — two platform how-to questions answered",
+    "FDE-CRUD": "AI FDE — create, read, update, delete an automation in the Sanity project",
+    "EVAL": "Evaluation — dataset + cases created, experiment run, scores present",
+    "ALERTS": "Alert channel — new failed runs since start, each with root cause",
 }
+IST = dt.timezone(dt.timedelta(hours=5, minutes=30), "IST")
 
 def now():
-    return dt.datetime.now(dt.timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M %Z")
+    return dt.datetime.now(IST).strftime("%d %b %Y, %H:%M IST")
+
+def hhmm(iso):
+    try:
+        return dt.datetime.fromisoformat(iso).astimezone(IST).strftime("%H:%M IST")
+    except Exception:
+        return iso
 
 def load(p):
     with open(p) as f:
@@ -40,7 +49,7 @@ def main():
     a = ap.parse_args()
 
     if a.cmd == "init":
-        checks = [c.strip() for c in (a.checks or "SB,FDE-UI,FDE-QA,EVAL,ALERTS").split(",") if c.strip()]
+        checks = [c.strip() for c in (a.checks or "SB,WFB,FDE-UI,FDE-QA,FDE-CRUD,EVAL,ALERTS").split(",") if c.strip()]
         started_iso = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
         s = {"env": a.env, "base_url": a.base_url, "started": now(), "started_iso": started_iso,
              "alert_since": started_iso, "alert_since_slack_ts": f"{dt.datetime.now(dt.timezone.utc).timestamp():.6f}",
@@ -65,27 +74,36 @@ def main():
     if a.cmd == "remaining":
         print("\n".join(k for k, v in s["checks"].items() if v["status"] not in TERMINAL)); return
     if a.cmd == "render":
+        checks = s["checks"]
         lines = []
         if a.plan:
-            lines.append(f"🧪 *Tekion platform sanity — {s['env']}* started {s['started']}")
-            lines.append(f"Target: {s['base_url']}  |  Alert watch: from now, every 5 min, at least {s['window_min']} min and 10 min past the last check")
-            lines.append(f"Running *{len(s['checks'])} checks in parallel*. Each posts its result in this thread as it finishes.")
-            for i, (k, v) in enumerate(s["checks"].items(), 1):
-                lines.append(f"{i}. {ICON[v['status']]} `{k}` — {LABEL.get(k, k)}")
-            lines.append("_If the session cookie expires mid-run, the affected check posts ⚠️ and lists what is left._")
+            lines += [f"🧪  *Tekion Platform Sanity — {s['env']}*",
+                      f"_Started {s['started']}_", "",
+                      f"*Target*   {s['base_url']}",
+                      f"*Alert watch*   from now · every 5 min · at least {s['window_min']} min, and 10 min past the last check", "",
+                      f"*Checks running in parallel ({len(checks)})*"]
+            for k, v in checks.items():
+                lines.append(f"{ICON[v['status']]}   `{k}`   {LABEL.get(k, k)}")
+            lines += ["", "> Each check posts its result in this thread the moment it finishes.",
+                      "> If a credential expires mid-run, the affected check posts ⚠️ with what is still left."]
         else:
-            done = sum(1 for v in s["checks"].values() if v["status"] in TERMINAL)
-            fails = [k for k, v in s["checks"].items() if v["status"] == "FAIL"]
-            verdict = "❌ *SANITY FAILED*" if fails else ("✅ *SANITY PASSED*" if done == len(s["checks"]) else "⏳ *SANITY IN PROGRESS*")
-            lines.append(f"{verdict} — {s['env']} — {done}/{len(s['checks'])} checks finished ({now()})")
-            for k, v in s["checks"].items():
-                ev = f" <{v['evidence'][-1]}|evidence>" if v["evidence"] else ""
-                lines.append(f"{ICON[v['status']]} `{k}` {v['status']}{(' — ' + v['note']) if v['note'] else ''}{ev}")
+            done = sum(1 for v in checks.values() if v["status"] in TERMINAL)
+            fails = [k for k, v in checks.items() if v["status"] == "FAIL"]
+            if fails: head = "❌  *SANITY FAILED"
+            elif done == len(checks): head = "✅  *SANITY PASSED"
+            else: head = "⏳  *SANITY IN PROGRESS"
+            lines += [f"{head} — {s['env']}*", f"_{done}/{len(checks)} checks finished · {now()}_", ""]
+            for k, v in checks.items():
+                line = f"{ICON[v['status']]}   `{k}`   *{v['status']}*"
+                if v["note"]: line += f"  —  {v['note']}"
+                if v["evidence"]: line += f"   <{v['evidence'][-1]}|evidence>"
+                lines.append(line)
             if a.final:
-                rem = [k for k, v in s["checks"].items() if v["status"] not in TERMINAL]
-                lines.append(f"Alert watch covered {s['alert_since']} → {now()} (older alerts intentionally not shown)")
-                if rem: lines.append(f"Not completed: {', '.join(rem)}")
-                if s["alerts"]: lines.append(f"New automation failures during window: {len(s['alerts'])}")
+                rem = [k for k, v in checks.items() if v["status"] not in TERMINAL]
+                sus = [x for x in s["alerts"] if x.get("classification") == "deployment-suspect"]
+                lines += ["", f"*Alert watch*   {hhmm(s['alert_since'])} → {now()[-9:]} · {len(s['alerts'])} new failed run(s), {len(sus)} deployment-suspect",
+                          "_Alerts from before this run were intentionally not read._"]
+                if rem: lines += ["", f"*Not completed*   {', '.join(rem)}"]
         print("\n".join(lines)); return
     sys.exit(f"unknown cmd {a.cmd}")
 

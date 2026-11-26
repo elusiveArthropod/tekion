@@ -1,6 +1,6 @@
 ---
 name: tekion-sanity
-description: Post-deployment platform sanity for the Tekion UnifyApps tenants (Pre-prod .xyz or Prod). Runs the product checks in parallel (Solution Builder build, AI FDE agent UI and Q&A, Evaluation create+run) while watching the automation alert channel, posts every result to Slack the moment it is known, and loops on the alert channel until the watch window ends. Use whenever the user says run sanity, start sanity, post-deployment check, validate the platform after a tag deploy, or invokes /tekion-sanity. Always collect the required inputs before touching anything.
+description: Post-deployment platform sanity for the Tekion UnifyApps tenants (Pre-prod .xyz or Prod). Runs the product checks in parallel (Solution Builder build of a medium-size app, Workflow Builder agent understand+make, AI FDE copilot UI, Q&A and CRUD, Evaluation create+run) while watching the automation alert channel, posts every result to Slack the moment it is known, and loops on the alert channel until the watch window ends. Use whenever the user says run sanity, start sanity, post-deployment check, validate the platform after a tag deploy, or invokes /tekion-sanity. Always collect the required inputs before touching anything.
 ---
 
 # Tekion post-deployment sanity
@@ -35,6 +35,9 @@ Ask for all of these in one message; the user replies in one message. Defaults a
 | Solution Builder prompt | no | the fixed prompt in `references/checks.md` |
 | FDE questions | no | the two in `references/checks.md` |
 | Alert watch window | no | 60 minutes after start, and never closes sooner than 10 minutes after the last product check finishes |
+| Workflow Builder agent id or URL | yes unless `WFB` is skipped | — |
+| Sanity project name or id (where WFB and FDE-CRUD create and delete objects) | yes unless both are skipped | — |
+| Existing automation name for the WFB "understand" step | no | the previous run's leftover, else ask |
 | Checks to skip (product absent in this env) | no | none |
 
 Store both credentials in `chmod 600` files (`install -m 600 /dev/null <scratchpad>/sanity/token.txt`, same for `cookie.txt`) and verify both before announcing anything:
@@ -52,7 +55,7 @@ The first must return HTTP 200; the second must exit 0 (exit 2 is a login redire
 
 ```
 python3 .claude/skills/tekion-sanity/scripts/sanity_state.py <scratchpad>/sanity/state.json init \
-  --env "<ENV>" --base-url <base> --checks "SB,FDE-UI,FDE-QA,EVAL,ALERTS" --window-min <N>
+  --env "<ENV>" --base-url <base> --checks "SB,WFB,FDE-UI,FDE-QA,FDE-CRUD,EVAL,ALERTS" --window-min <N>
 python3 .claude/skills/tekion-sanity/scripts/sanity_state.py <scratchpad>/sanity/state.json render --plan
 ```
 
@@ -62,7 +65,9 @@ The ALERTS "since" marker is the moment the user provided the inputs; `init` sto
 
 ### 2. Launch the checks in parallel
 
-Launch one `Agent` (subagent_type `general-purpose`, `run_in_background: true`) per product check, all in a single message: `SB`, `FDE-UI`, `FDE-QA`, `EVAL`. Keep `ALERTS` in the main session (it is cheap Slack reading and it needs to loop).
+Launch one `Agent` (subagent_type `general-purpose`, `run_in_background: true`) per product check, all in a single message: `SB`, `WFB`, `FDE-UI`, `EVAL`, and one agent that runs `FDE-QA` then `FDE-CRUD` in sequence (same chat surface, and CRUD must not interleave with the questions). Keep `ALERTS` in the main session (it is cheap Slack reading and it needs to loop).
+
+`WFB` and `FDE-CRUD` write to the tenant. They are confined to the Sanity project from the inputs and must diff that project before and after. If the user has not named a Sanity project, skip both and say so in the plan post; never let them run against an unnamed project.
 
 Each agent prompt must contain, verbatim: the base URL, the token file path, the cookie file path, the scratchpad output dir, the results channel id and thread ts, the state file path, the check id, and the full procedure for that check copied from `references/checks.md` (the agent cannot see this conversation). Tell it to:
 
@@ -78,7 +83,7 @@ Mark each check RUNNING in the state file as you launch it.
 
 The alert channel is fed by an automation that posts failed runs **every 5 minutes**, so a failure caused by a product check shows up to 5 minutes after it happened. Right after launching, do the first ALERTS tick (procedure in `references/checks.md`), then call `ScheduleWakeup` with `delaySeconds` 300 and the prompt `continue tekion-sanity loop`. On every wakeup:
 
-1. Read `slack_read_channel` on the alert channel, messages with ts newer than `alert_since` and newer than the last one already recorded. For each **new** failed-run alert: open its thread, open the run link with `ua_probe.mjs`, extract the failing node and the error text, find the parent (which agent, knowledge base, application or connector the node belongs to), and judge whether it is plausibly caused by the deployment (new error signature, started after deploy time, touches the deployed component) or pre-existing noise. Post one thread reply per new failure in the results thread, format in the templates file, and append it to `state.json` under `alerts`. Do not re-report an alert already recorded.
+1. Read `slack_read_channel` on the alert channel, messages with ts newer than `alert_since` and newer than the last one already recorded. For each **new** failed-run alert: open its thread, open the run link with `ua_probe.mjs`, extract the failing node and the error text, find the parent (which agent, knowledge base, application or connector the node belongs to), and judge whether it is plausibly caused by the deployment (new error signature, started after deploy time, touches the deployed component) or pre-existing noise. Post one thread reply per new failure in the results thread, format in the templates file, and append it to `state.json` under `alerts` as `{"ts": <slack ts>, "name": <automation>, "classification": "deployment-suspect" | "pre-existing" | "sanity-triggered" | "tbd"}` so the final post can count them. Do not re-report an alert already recorded.
 2. If a subagent finished (its result arrived), make sure its Slack post exists; if the agent crashed without posting, post the FAIL yourself with its error.
 3. If any check reported AUTH_EXPIRED: post the ⚠️ message listing remaining checks and ask the user in chat for a fresh cookie. On receiving it, overwrite the cookie file, verify it, relaunch only the unfinished checks.
 4. Schedule the next wakeup: 300 s while checks are running or the window is open; `noop: true` when nothing changed.
