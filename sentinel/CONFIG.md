@@ -55,7 +55,7 @@ Every Sentinel automation id goes into the Notifier's `triggerInputCondition` so
 
 | Automation | Id |
 |---|---|
-| sentinel · notifier | `6b071c56e61cdd44b6f3050f` (deployed v5) |
+| sentinel · notifier | `6b071c56e61cdd44b6f3050f` (deployed v6, paused) |
 | sentinel · grouper | `6b0732e577940a61944d6d96` (deployed v1, every 2 min) |
 | sentinel · poster | `6b07c3cfe61cdd44b6fba9ee` (deployed v1, every 2 min, only Slack writer) |
 | sentinel · button-handler | `6b07c40fe61cdd44b6fbaf40` (Slack button clicks → tool-record-answer) |
@@ -72,6 +72,65 @@ Every Sentinel automation id goes into the Notifier's `triggerInputCondition` so
 ## State: ALL AUTOMATIONS PAUSED (26 Nov, on request, to limit platform load)
 
 Pause/resume: `POST https://finance.toc.tekioncloud.xyz/api/workflow-definition/{id}/pause` (toggle; needs the session cookie and `Origin` header), or the Running switch on the automation page. Resume order when restarting: notifier → grouper → poster → handlers; registry-sync, test-failure and the tools are callable and only run when called.
+
+## How the automations hand off to each other
+
+```
+platform trigger "On Automation Run Failed"
+        │  one event per failed run
+        ▼
+[1] sentinel · notifier  ──insert──▶  sentinel_failed_run (state = new)
+        goal: lose nothing. Store the raw failure in <150 ms. No decisions, no Slack, no AI.
+        filters: test runs, platform-internal runs (no automationId), itself, 4 known-noise automations.
+
+        every 2 min
+        ▼
+[2] sentinel · grouper  ──reads new runs──▶  writes sentinel_issue, marks runs grouped
+        goal: turn runs into Issues. Fingerprint (automation + node + error class + normalised message),
+        cascade (parent/child), storm flags, counters (total, since last answer), state, severity,
+        escalation level. Decides what the poster should do: needsPost + postKind (new / repeat / escalate / reopen).
+        side effect: unknown automation → registry row (source = auto).
+
+        every 2 min
+        ▼
+[3] sentinel · poster  ──reads Issues with needsPost──▶  Slack #sentinel-finance, sentinel_slack_post
+        goal: the only Slack writer. One thread per Issue with answer buttons (new), thread reply (repeat),
+        new top-level post tagging product (escalate / reopen). Records every post so a thread maps back to its Issue.
+        After the first post: Issue.state = triaging, slackRootTs saved.
+
+        ┌───────────────── a human acts in Slack ─────────────────┐
+        ▼                                                          ▼
+[4a] sentinel · button-handler                         [4b] sentinel · reply-handler
+     trigger: Slack button click                            trigger: Slack new message in a thread
+     goal: a one-click answer needs no AI.                  goal: free text needs understanding.
+     maps the button to an answer and calls                 builds "[Sentinel issue <id> | thread <ts> | from <@U>] text"
+     [5] tool-record-answer, confirms in thread, ✅          and invokes the Sentry agent; posts its final text in the thread.
+                                                                      │
+                                                                      ▼
+                                                        Sentry (AI agent, e_6b07c410f61bef41ade9150b)
+                                                        goal: read the Issue, interpret the person's words, record a
+                                                        decision only when there is one. Tools:
+                                                          [6] tool-get-issue   → Issue + registry + latest 5 runs (read-only)
+                                                          [5] tool-record-answer → applies expected / known / working /
+                                                              needs_devs / fixed / not_sure / owner
+
+[5] sentinel · tool-record-answer  ──writes──▶  sentinel_issue (state, suppression, counters), sentinel_known_issue,
+        sentinel_decision_log, sentinel_workflow_registry (owner)
+        goal: the single place a human decision becomes data. Next time the same fingerprint fails, [2] reads that
+        state and stays silent (suppressed), counts (tracked), or escalates (triaging with no answer).
+
+helpers, run on demand
+  sentinel · registry-sync   seeds sentinel_workflow_registry from the platform's automation list (names, platform owners)
+  sentinel · ask-sentry      invokes Sentry with a query (testing; later the first-failure explanation)
+  sentinel · test-failure    throws on purpose so the whole chain can be exercised
+
+not built yet
+  sentinel · follow-up (hourly)      expired ETAs, reminders, ETA chase, Atlas status, silence auto-close  (Flow C)
+  sentinel · safety-checks (5 min)   missed events, heartbeats of every component above                   (Flow D)
+  sentinel · stuck-runs (5 min)      in-progress runs vs expected duration                                 (Flow E)
+```
+
+The loop closes through data, not through calls: [1]→[2]→[3] are decoupled by `sentinel_failed_run.state` and `sentinel_issue.needsPost`, so any one of them can pause or fail without losing events; [4]/[5] write state that [2] reads on the next failure.
 
 ## Built so far
 

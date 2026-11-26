@@ -1,4 +1,4 @@
-import { and, appEvent, automation, ne, op, stop, TRIGGER } from "@ua/automations";
+import { and, appEvent, automation, exists, ne, op, stop, TRIGGER } from "@ua/automations";
 
 export default automation(
   {
@@ -13,6 +13,8 @@ export default automation(
       // Builder test runs are noise (A10). Sentinel's own automations are excluded so a failure cannot loop (G4);
       // the list is maintained in sentinel/CONFIG.md.
       triggerInputCondition: and(
+        // Platform-internal runs (agent test invocations, for one) carry no automationId: not an automation failure.
+        exists(TRIGGER.automationId),
         ne(TRIGGER.isTestRun, true),
         ne(TRIGGER.automationId, "6b071c56e61cdd44b6f3050f"),
         // Known noise, excluded by the existing Node Failure Alert poller too (thousands of runs per hour). See CONFIG.md.
@@ -46,8 +48,9 @@ export default automation(
           userId: { type: "string", title: "User Id" },
           projectId: { type: "string", title: "Project Id" },
           retryCount: { type: "integer", title: "Retry Count" },
+          automationId: { type: "string", title: "Automation Id" },
         },
-        required: ["errorMessage", "exceptionClass", "errorRaw", "errorTruncated", "runUrl", "now", "userId", "projectId", "retryCount"],
+        required: ["errorMessage", "exceptionClass", "errorRaw", "errorTruncated", "runUrl", "now", "userId", "projectId", "retryCount", "automationId"],
       },
       parameters: {
         event: t,
@@ -95,7 +98,7 @@ export default automation(
         "def asInt = { v -> try { v == null ? 0 : ((v as Long).intValue()) } catch (Exception ex) { 0 } }",
         "return [errorMessage: msg.take(2000), exceptionClass: cls.take(300), errorRaw: raw, errorTruncated: truncated,",
         "  runUrl: ('https://finance.toc.tekioncloud.xyz/p/0/automations/' + asStr(ev.automationId) + '/runs/' + asStr(ev.executionId)),",
-        "  now: System.currentTimeMillis(), userId: asStr(ev.userId), projectId: asStr(ev.projectId), retryCount: asInt(ev.retryCount)]",
+        "  now: System.currentTimeMillis(), userId: asStr(ev.userId), projectId: asStr(ev.projectId), retryCount: asInt(ev.retryCount), automationId: (asStr(ev.automationId) ?: 'platform-internal')]",
       ].join("\n"),
       compile_static: false,
       captureStdOutput: false,
@@ -106,7 +109,7 @@ export default automation(
       object_type: "sentinel_failed_run",
       record: {
         executionId: t.executionId,
-        automationId: t.automationId,
+        automationId: parsed.result.automationId,
         rootExecutionId: t.rootExecutionId,
         parentExecutionId: t.parentExecutionId,
         nodeId: t.nodeId,
