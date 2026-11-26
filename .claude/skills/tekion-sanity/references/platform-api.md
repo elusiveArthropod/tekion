@@ -32,6 +32,10 @@ IDs look like `e_<24 hex>`; the UI puts them in `location.pathname`.
 - AI Teams (Solution Builder) team: `/p/0/ai-teams/e_69a84345925f136d9c9e437e`; sessions: `.../observability/sessions/all`
 - FDE agent config: `/p/0/ai-agents/e_ai_fde_agent/configuration/instructions`
 - Evaluation: `/p/0/evaluation/...`
+- Automations list: `/p/0/automations`; builder for one automation: `/p/0/automations/<automationId>/builder`
+- Workflow Builder copilot (agent that explains and builds automations): the builder URL with `?nav=copilot` (seen 2026-10-27, the UI adds a `<prefix>-chatId=new` param whose prefix varies). Agent entity on Pre-prod finance: `e_6aa19955aeb9ea1371af57c7`; sessions `/p/0/ai-agents/e_6aa19955aeb9ea1371af57c7/observability/sessions/all`. Its executor automation ("Call LLM (AI Agent) Wrapper" path) is `67850d225384a9541846f5b9`; the TEK-657 "stuck in thoughts" failure logged `Your response does not match the required format` there.
+- A safe existing automation to ask the Workflow Builder to explain on Pre-prod finance: `Node Failure Alert - Finance`, `6ab21aea970f873408436c68` (production 5-min poller; read it, never edit it).
+- Pause/resume an automation (session cookie plus `Origin: <base>` header, not the API token): `POST /api/workflow-definition/<id>/pause` (toggle). Shows the `/api/workflow-definition/` namespace exists; create and delete bodies are still to discover.
 
 ## To discover on the first run (record here once found)
 
@@ -39,6 +43,12 @@ IDs look like `e_<24 hex>`; the UI puts them in `location.pathname`.
 |---|---|
 | Solution Builder: prompt input selector and send action | TBD |
 | Solution Builder: how to list and delete a solution (UI path or entity type) | TBD |
+| Workflow Builder: copilot input selector and reply end marker in the builder panel | TBD (first try `div[contenteditable='true'][role='textbox']`, same as the FDE test page) |
+| Workflow Builder: canvas node title selector (to count and name nodes) | TBD |
+| Automation: create an empty draft (UI create action on `/p/0/automations`, or `POST /api/workflow-definition` body) | TBD |
+| Automation: delete a draft (list-page menu, or `POST /api/workflow-definition/<id>/delete`) | TBD |
+| Automation: test-run a draft from the builder (button name) | TBD |
+| AI FDE: configured tool list (property path on `GET /api/entity/ai_agent/e_ai_fde_agent`, and the tool names) | TBD. Decides whether FDE-CRUD can pass at all on a tenant; record the names here after the first run. |
 | `GetAllSessions` request body for the AI Teams sessions page | TBD |
 | FDE agent: chat/test surface URL and reply container selector | **Found 2026-11-25.** "Preview" top-bar button (CSS `text=Preview`, no href) navigates to `/p/0/ai-agents/<agentId>/test?...chatId=new` (title "Test Agent Copilot"); openable directly via that `/test` URL. Chat input: contenteditable `.tiptap.ProseMirror` with placeholder "Ask a question" — robust selector `div[contenteditable='true'][role='textbox']` (aria-label "Ask a question"); playwright `fill` works, send with `press` Enter. A transient AUTH_EXPIRED (probe exit 2) can appear during the Preview-click SPA navigation as a false positive; confirm by loading `/test` directly. Reply container (verified 2026-11-25 FDE-QA): no stable per-message class (markdown/prose/message selectors return 0); the answer streams into `document.body.innerText` — agent first shows a tool line (e.g. "Let's make use of the tool Ask From Knowledge", ~18-24s), then "Generating response…", then the answer ending with "Response has been generated". Capture via `body` innerText and slice after the echoed question; allow ~90s settle before capturing (waitForText on a short answer term fires too early, while the RAG tool call is still running). |
 | FDE agent: conversation starter chip selector | **Corrected 2026-11-25.** The agent entity has no starters (`conversationStarters: []`, Instructions page shows one empty "Start typing…" slot) and that is expected. The starters users see belong to the **AI FDE copilot panel**, opened by the `✦ AI FDE` button in the platform top bar: greeting "Hey, I'm AI FDE", subtitle "I can help you do your best work", chips "How do I convert or merge files (PDF, Excel)?", "How do I write an analytics SQL query?", "How do I map a data pill?", input placeholder "Ask anything...". Stable button and chip selectors: TBD (first try `text=AI FDE`, then a `role=button` form; chips are buttons whose text ends in `?`). |
