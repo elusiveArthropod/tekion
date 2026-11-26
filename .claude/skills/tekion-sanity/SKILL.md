@@ -117,3 +117,5 @@ Then `sanity_state.py ... render --final`, post it as the last thread reply (eac
 - The FDE answers come from an LLM. Judge them against the acceptance terms in the checks file, not against your own opinion of a good answer.
 - Slack caps a message at 5000 characters; error text goes in a code block trimmed to the first 40 lines.
 - Two sanity runs must not run at once against the same tenant: their created assets would collide. Check the results channel for an open run first.
+- On pre-prod, `e_solution` and `e_interface` entities created on the Main tenant are visible through the finance tenant's `/api/entity` (seen 26 Nov 2026). If another sanity run is open on ANY toc pre-prod tenant, treat its assets as present in yours: delete only ids you created and verified by name and stamp, never an id a subagent attributed without the name. The 26 Nov finance run deleted the Main run's solution entity this way.
+- Before any delete, print the entity's name and stamp and stop if it is not this run's; never chain a delete after a lookup in one command.
