@@ -4,7 +4,9 @@
   sanity_state.py <state.json> init --env PRE-PROD --base-url URL --checks "SB,WFB,FDE-UI,FDE-QA,FDE-CRUD,EVAL,ALERTS" [--window-min 60]
   sanity_state.py <state.json> set  <check> <status> ["note"] [--evidence URL]   status: PENDING RUNNING PASS FAIL AUTH_EXPIRED SKIPPED  (times render in IST)
   sanity_state.py <state.json> slack-ts <ts>          remember the Slack root post ts
-  sanity_state.py <state.json> render [--plan|--progress|--final]   print a Slack-formatted message
+  sanity_state.py <state.json> render [--plan|--progress|--final] [--max-chars 1500]
+        print a Slack-formatted message; over --max-chars it is split on line boundaries into parts
+        separated by a "=====PART n/N" line, each to be sent as its own reply, in order
   sanity_state.py <state.json> remaining                print checks not yet in a terminal state
   sanity_state.py <state.json> alert-since              print the Slack ts to use as `oldest` for the alert channel
 """
@@ -32,6 +34,26 @@ def hhmm(iso):
     except Exception:
         return iso
 
+PART_SEP = "=====PART"
+
+def split_parts(lines, max_chars):
+    """Split rendered lines into chunks under max_chars, on line boundaries only.
+    A continuation chunk starts with "(continued)" so it reads correctly as its own reply.
+    A single line longer than max_chars is truncated with an ellipsis; it should never happen with
+    the note length rule, but a truncated line is better than a Slack rejection at midnight."""
+    parts, cur = [], []
+    for line in lines:
+        if len(line) > max_chars - 1:
+            line = line[: max_chars - 2] + "…"
+        candidate = "\n".join(cur + [line])
+        if cur and len(candidate) > max_chars:
+            parts.append("\n".join(cur))
+            cur = ["_(continued)_", line]
+        else:
+            cur.append(line)
+    if cur: parts.append("\n".join(cur))
+    return parts
+
 def load(p):
     with open(p) as f:
         return json.load(f)
@@ -45,6 +67,7 @@ def main():
     ap.add_argument("state"); ap.add_argument("cmd"); ap.add_argument("rest", nargs="*")
     ap.add_argument("--env"); ap.add_argument("--base-url"); ap.add_argument("--checks")
     ap.add_argument("--window-min", type=int, default=60); ap.add_argument("--evidence")
+    ap.add_argument("--max-chars", type=int, default=1500, help="split rendered posts over this size on line boundaries")
     ap.add_argument("--plan", action="store_true"); ap.add_argument("--progress", action="store_true"); ap.add_argument("--final", action="store_true")
     a = ap.parse_args()
 
@@ -104,7 +127,14 @@ def main():
                 lines += ["", f"*Alert watch*   {hhmm(s['alert_since'])} → {now()[-9:]} · {len(s['alerts'])} new failed run(s), {len(sus)} deployment-suspect",
                           "_Alerts from before this run were intentionally not read._"]
                 if rem: lines += ["", f"*Not completed*   {', '.join(rem)}"]
-        print("\n".join(lines)); return
+        parts = split_parts(lines, a.max_chars)
+        if len(parts) == 1:
+            print(parts[0])
+        else:
+            for i, part in enumerate(parts, 1):
+                if i > 1: print(f"\n{PART_SEP} {i}/{len(parts)}\n")
+                print(part)
+        return
     sys.exit(f"unknown cmd {a.cmd}")
 
 if __name__ == "__main__":

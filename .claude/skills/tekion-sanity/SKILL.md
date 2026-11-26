@@ -59,7 +59,7 @@ python3 .claude/skills/tekion-sanity/scripts/sanity_state.py <scratchpad>/sanity
 python3 .claude/skills/tekion-sanity/scripts/sanity_state.py <scratchpad>/sanity/state.json render --plan
 ```
 
-Post the rendered plan to the results channel with `slack_send_message`. Save the returned `ts` with `sanity_state.py ... slack-ts <ts>`. Every later post is a **reply in that thread** (`thread_ts`).
+Post the rendered plan to the results channel with `slack_send_message`. If the renderer printed `=====PART n/N` separators, the first part is the root post and each later part is a reply in its thread, sent in order, one call at a time. Save the returned `ts` with `sanity_state.py ... slack-ts <ts>`. Every later post is a **reply in that thread** (`thread_ts`).
 
 The ALERTS "since" marker is the moment the user provided the inputs; `init` stores it as `alert_since`. Alerts posted to the alert channel before that moment are never read, reported or counted. The team does not want to see failures that predate this run.
 
@@ -95,7 +95,7 @@ The loop ends when **all** of:
 - the watch window (`window_min`, default 60 from start) has elapsed;
 - no alert is mid-investigation.
 
-Then `sanity_state.py ... render --final`, post it as the last thread reply, mention the on-call person only if the verdict is ❌, and call `ScheduleWakeup` with `stop: true`.
+Then `sanity_state.py ... render --final`, post it as the last thread reply (each `=====PART` part as its own reply, in order), mention the on-call person only if the verdict is ❌, and call `ScheduleWakeup` with `stop: true`.
 
 ### 4. Clean up and record
 

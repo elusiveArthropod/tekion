@@ -9,8 +9,8 @@ Formatting rules, learned from the first runs (the posts were too dense to scan 
 - Labels in bold followed by three spaces, then the value: `*Session*   <url>`.
 - Error text always in a fenced code block, trimmed to 40 lines. Never inline.
 - Links as `<url|short label>`, never bare URLs longer than one line.
-- One emoji per message, the status icon. No decorative emoji.
-- Under 1500 characters per reply; split evidence into a second reply if needed.
+- Per-check detail replies, alert replies and the paused/skipped replies carry one emoji, the status icon, and nothing decorative. The plan, progress and final posts are the exception: they carry one status icon per check line by design, because that column is what people scan.
+- Under 1500 characters per reply. `sanity_state.py render` enforces this for the plan, progress and final posts: over the cap it prints parts separated by a `=====PART n/N` line, and each part is sent as its own reply in order, never merged. For hand-written replies, move the code block or the evidence into a second reply.
 - Times in IST, `HH:MM IST`.
 
 ## Check result (one reply per check, posted the moment it finishes)
