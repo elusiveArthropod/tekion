@@ -34,7 +34,7 @@ Phase: <1 Discovery | 2 Exploration | 3 Design | 4 Build | 5 Test | 6 Closed>  Â
 - Flow (detailed): <link to diagram>
 - Components:
 - Data model:
-- Integrations and credentials (pointers only):
+- Integrations and credentials (pointers only: platform host, auth kind and owner, connection ids, destination ids, webhook wiring; verified on <date>):
 - Build order:
 
 ## Build log

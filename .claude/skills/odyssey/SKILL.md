@@ -51,8 +51,9 @@ Goal: a design the user can explain to someone else before anything is built.
 1. Propose the structure: the end-to-end flow, the components and what each owns, the data model (one object per concept, do not fold things together to look simple), the integrations, the schedulers and triggers, and the human touchpoints.
 2. Draw it. Two levels: a **simple flow** for someone with no context (the five-question style: real or noise? new or known? who owns it? how bad? action), and a **detailed flow** for the build (components, reads/writes, state machine, data model). Produce editable files (draw.io), render them, and look at the render yourself before sending; fix overlaps and crossing lines.
 3. Walk the user through it. Incorporate suggestions; iterate until they say they understand the whole flow. Capture each change as a decision.
-4. Define the build order: smallest slice that proves the plumbing first, then the next, each with a verification step. Name the credentials, connections, channels and access each slice needs so the user can create them before the build starts.
-5. Gate: "Design agreed. Here is the step list and what I need from you for step 1. Start building?"
+4. Define the build order: smallest slice that proves the plumbing first, then the next, each with a verification step.
+5. **Collect the build inputs** from `references/build-inputs.md` in one message: target platform and environment, authentication (service token preferred; a session cookie is accepted for the build, with its cookie/header name, and the user is told to rotate it after), every connection the design needs with its id and destination ids, inbound event wiring, permission for a test fixture, known exclusions, the pause rule. Then **probe each one read-only** and report what works before writing anything. Secrets never go into the repo, the sheet or the state file; only where they live and who owns them.
+6. Gate: "Design agreed, inputs verified (list). Here is the step list. Start building step 1?"
 
 ## Phase 4: Implementation
 
@@ -101,8 +102,9 @@ Goal: someone else, or future you, can run, change and resume this.
 ## Invocation
 
 - `/odyssey` with a new problem: create the state file, start Phase 1.
+- `/odyssey build`: the design is agreed and the user wants to start; collect and verify the build inputs (`references/build-inputs.md`), then begin step 1.
 - `/odyssey` on an existing project (state file present or named): read it, report status in two lines, continue from the recorded phase.
 - `/odyssey status`: summarise decisions, open questions and next action from the state file.
 - `/odyssey close`: run Phase 6 for the current project.
 
-References: `references/intake.md` (discovery questions by problem type), `references/state-template.md` (the state file skeleton), `references/lessons.md` (what the Sentinel odyssey taught, including UnifyApps platform gotchas).
+References: `references/intake.md` (discovery questions by problem type), `references/build-inputs.md` (platform, auth, connections and fixtures to collect and verify before building), `references/state-template.md` (the state file skeleton), `references/lessons.md` (what the Sentinel odyssey taught, including UnifyApps platform gotchas).
