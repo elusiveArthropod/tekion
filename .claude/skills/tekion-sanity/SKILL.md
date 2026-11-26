@@ -35,9 +35,9 @@ Ask for all of these in one message; the user replies in one message. Defaults a
 | Solution Builder prompt | no | the fixed prompt in `references/checks.md` |
 | FDE questions | no | the two in `references/checks.md` |
 | Alert watch window | no | 60 minutes after start, and never closes sooner than 10 minutes after the last product check finishes |
-| Workflow Builder agent id or URL | yes unless `WFB` is skipped | — |
-| Sanity project name or id (where WFB and FDE-CRUD create and delete objects) | yes unless both are skipped | — |
-| Existing automation name for the WFB "understand" step | no | the previous run's leftover, else ask |
+| Workflow Builder agent id | no | `e_6aa19955aeb9ea1371af57c7` |
+| Test automation URL in the Sanity project that WFB may modify (permanent, never a live one) | yes unless `WFB` is skipped | — |
+| Sanity project name or id (where WFB and FDE-CRUD create, modify and delete objects) | yes unless both are skipped | — |
 | Checks to skip (product absent in this env) | no | none |
 
 Store both credentials in `chmod 600` files (`install -m 600 /dev/null <scratchpad>/sanity/token.txt`, same for `cookie.txt`) and verify both before announcing anything:
@@ -67,7 +67,9 @@ The ALERTS "since" marker is the moment the user provided the inputs; `init` sto
 
 Launch one `Agent` (subagent_type `general-purpose`, `run_in_background: true`) per product check, all in a single message: `SB`, `WFB`, `FDE-UI`, `EVAL`, and one agent that runs `FDE-QA` then `FDE-CRUD` in sequence (same chat surface, and CRUD must not interleave with the questions). Keep `ALERTS` in the main session (it is cheap Slack reading and it needs to loop).
 
-`WFB` and `FDE-CRUD` write to the tenant. They are confined to the Sanity project from the inputs and must diff that project before and after. If the user has not named a Sanity project, skip both and say so in the plan post; never let them run against an unnamed project.
+`WFB` and `FDE-CRUD` write to the tenant. They are confined to the Sanity project and the named test automation from the inputs and must diff before and after. If the user has not named a Sanity project (and, for WFB, a test automation), skip the affected check and say so in the plan post; never let them run against an unnamed project or a live automation.
+
+Every agent-driven check also runs the parallel session-trace monitor described in the common rules of `references/checks.md`; its agent prompt must include that section and the sessions URL for its agent.
 
 Each agent prompt must contain, verbatim: the base URL, the token file path, the cookie file path, the scratchpad output dir, the results channel id and thread ts, the state file path, the check id, and the full procedure for that check copied from `references/checks.md` (the agent cannot see this conversation). Tell it to:
 

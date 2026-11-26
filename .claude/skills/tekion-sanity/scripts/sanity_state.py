@@ -15,11 +15,11 @@ import json, sys, argparse, datetime as dt
 TERMINAL = {"PASS", "FAIL", "SKIPPED"}
 ICON = {"PENDING": "⬜", "RUNNING": "⏳", "PASS": "✅", "FAIL": "❌", "AUTH_EXPIRED": "⚠️", "SKIPPED": "⏭️"}
 LABEL = {
-    "SB": "Solution Builder — build a vendor onboarding + purchase request app, trace clean, 6 functional checks",
-    "WFB": "Workflow Builder agent — explain an existing automation, then create one in the Sanity project",
+    "SB": "Solution Builder — build the vendor onboarding + purchase request system, trace clean, 8 functional checks",
+    "WFB": "Workflow Builder agent — explain the test automation, add one node, remove it, traces clean",
     "FDE-UI": "AI FDE — copilot panel opens with conversation starters",
-    "FDE-QA": "AI FDE — two platform how-to questions answered",
-    "FDE-CRUD": "AI FDE — create, read, update, delete an automation in the Sanity project",
+    "FDE-QA": "AI FDE — two platform how-to questions answered, traces clean",
+    "FDE-CRUD": "AI FDE — create a test object, add/update/delete records, delete it, traces clean",
     "EVAL": "Evaluation — dataset + cases created, experiment run, scores present",
     "ALERTS": "Alert channel — new failed runs since start, each with root cause",
 }
@@ -97,36 +97,41 @@ def main():
     if a.cmd == "remaining":
         print("\n".join(k for k, v in s["checks"].items() if v["status"] not in TERMINAL)); return
     if a.cmd == "render":
+        # Standard markdown: the slack_send_message tool converts **bold**, _italic_, [label](url),
+        # > quotes and a `---` horizontal rule. Slack mrkdwn (*bold*, <url|label>) is NOT converted.
         checks = s["checks"]
         lines = []
+        def check_line(k, v, with_status):
+            line = f"{ICON[v['status']]}  `{k}`"
+            if with_status: line += f"  **{v['status']}**"
+            else: line += f"  {LABEL.get(k, k)}"
+            if with_status and v["note"]: line += f" — {v['note']}"
+            if with_status and v["evidence"]: line += f" · [evidence]({v['evidence'][-1]})"
+            return line
         if a.plan:
-            lines += [f"🧪  *Tekion Platform Sanity — {s['env']}*",
+            lines += [f"🧪 **Tekion Platform Sanity — {s['env']}**",
                       f"_Started {s['started']}_", "",
-                      f"*Target*   {s['base_url']}",
-                      f"*Alert watch*   from now · every 5 min · at least {s['window_min']} min, and 10 min past the last check", "",
-                      f"*Checks running in parallel ({len(checks)})*"]
-            for k, v in checks.items():
-                lines.append(f"{ICON[v['status']]}   `{k}`   {LABEL.get(k, k)}")
+                      f"**Target** {s['base_url']}",
+                      f"**Alert watch** from now · every 5 min · at least {s['window_min']} min, and 10 min past the last check", "",
+                      f"**Checks running in parallel ({len(checks)})**", ""]
+            lines += [check_line(k, v, False) for k, v in checks.items()]
             lines += ["", "> Each check posts its result in this thread the moment it finishes.",
                       "> If a credential expires mid-run, the affected check posts ⚠️ with what is still left."]
         else:
             done = sum(1 for v in checks.values() if v["status"] in TERMINAL)
             fails = [k for k, v in checks.items() if v["status"] == "FAIL"]
-            if fails: head = "❌  *SANITY FAILED"
-            elif done == len(checks): head = "✅  *SANITY PASSED"
-            else: head = "⏳  *SANITY IN PROGRESS"
-            lines += [f"{head} — {s['env']}*", f"_{done}/{len(checks)} checks finished · {now()}_", ""]
-            for k, v in checks.items():
-                line = f"{ICON[v['status']]}   `{k}`   *{v['status']}*"
-                if v["note"]: line += f"  —  {v['note']}"
-                if v["evidence"]: line += f"   <{v['evidence'][-1]}|evidence>"
-                lines.append(line)
+            if fails: head = "❌ **SANITY FAILED"
+            elif done == len(checks): head = "✅ **SANITY PASSED"
+            else: head = "⏳ **SANITY IN PROGRESS"
+            lines += [f"{head} — {s['env']}**", f"_{done}/{len(checks)} checks finished · {now()}_", ""]
+            lines += [check_line(k, v, True) for k, v in checks.items()]
             if a.final:
                 rem = [k for k, v in checks.items() if v["status"] not in TERMINAL]
                 sus = [x for x in s["alerts"] if x.get("classification") == "deployment-suspect"]
-                lines += ["", f"*Alert watch*   {hhmm(s['alert_since'])} → {now()[-9:]} · {len(s['alerts'])} new failed run(s), {len(sus)} deployment-suspect",
+                lines += ["", f"**Alert watch** {hhmm(s['alert_since'])} → {now()[-9:]} · {len(s['alerts'])} new failed run(s), {len(sus)} deployment-suspect",
                           "_Alerts from before this run were intentionally not read._"]
-                if rem: lines += ["", f"*Not completed*   {', '.join(rem)}"]
+                if rem: lines += ["", f"**Not completed** {', '.join(rem)}"]
+        lines += ["", "---"]
         parts = split_parts(lines, a.max_chars)
         if len(parts) == 1:
             print(parts[0])

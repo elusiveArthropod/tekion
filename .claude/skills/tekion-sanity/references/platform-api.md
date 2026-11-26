@@ -30,7 +30,8 @@ IDs look like `e_<24 hex>`; the UI puts them in `location.pathname`.
 
 - Base: `https://finance.toc.tekioncloud.xyz`
 - AI Teams (Solution Builder) team: `/p/0/ai-teams/e_69a84345925f136d9c9e437e`; sessions: `.../observability/sessions/all`
-- FDE agent config: `/p/0/ai-agents/e_ai_fde_agent/configuration/instructions`
+- FDE agent config: `/p/0/ai-agents/e_ai_fde_agent/configuration/instructions`; sessions: `/p/0/ai-agents/e_ai_fde_agent/observability/sessions/all`
+- Workflow Builder agent: `e_6aa19955aeb9ea1371af57c7`; sessions: `/p/0/ai-agents/e_6aa19955aeb9ea1371af57c7/observability/sessions/all`. Used from inside an automation's editor (panel selector: TBD).
 - Evaluation: `/p/0/evaluation/...`
 
 ## To discover on the first run (record here once found)

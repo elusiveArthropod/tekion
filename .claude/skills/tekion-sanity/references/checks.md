@@ -9,33 +9,45 @@ Common rules:
 - A login redirect or HTTP 401/403 at any step is AUTH_EXPIRED, not FAIL.
 - Every created asset is named `sanity-<env>-<YYYYMMDD-HHMM>` so it can be found and deleted.
 - Evidence on FAIL: screenshot path, the error text, the session or run URL.
+- **Parallel session-trace monitor.** Every agent-driven check (SB, WFB, FDE-QA, FDE-CRUD) also watches that agent's observability sessions while it runs and for 2 minutes after: poll the sessions page every 60 s with `ua_probe.mjs` (`text` on the session list, then open any session started by this run), and read each trace for error status or text matching `error|exception|failed|timed out|rate limit`. An error trace in a session this run created is a FAIL for that check with the trace URL as evidence, even if the chat reply looked fine. Error traces in sessions this run did not create are reported in the check's note as "other sessions failing: <n>, e.g. <url>" and handed to ALERTS. Sessions pages:
+  - Solution Builder team: `<base>/p/0/ai-teams/<teamId>/observability/sessions/all`
+  - Workflow Builder agent: `<base>/p/0/ai-agents/e_6aa19955aeb9ea1371af57c7/observability/sessions/all`
+  - AI FDE agent: `<base>/p/0/ai-agents/e_ai_fde_agent/observability/sessions/all`
 
 ## SB: Solution Builder (AI Teams)
 
-Budget: 45 min for the build, 10 min for the functional check.
+Budget: 60 min for the build, 15 min for the functional check.
 
 Fixed prompt (do not vary between runs unless the user overrides it, otherwise results are not comparable). It is deliberately a medium-size system, not a single form, so that a regression in data modelling, relations, roles, workflow logic or dashboards shows up:
 
-> Build an internal "Vendor Onboarding & Purchase Request" system. Entities: Vendor (name, category, country, status Draft/Under Review/Approved/Blocked, contact email), Purchase Request (title, vendor, amount, currency, needed-by date, justification, status Submitted/Manager Approved/Finance Approved/Rejected), and Approval Comment (request, author, text, timestamp). Roles: Requester can create and view their own requests; Manager sees all requests from their team and approves or rejects with a comment; Finance sees Manager-Approved requests above 5000 and gives final approval. A request can only be submitted against an Approved vendor. Pages: vendor list with status filter and a vendor detail page; request list with status and vendor filters; a request detail page showing the approval comment trail; a dashboard with total approved amount this month, requests pending per status, and top 5 vendors by approved amount. Send an in-app notification to the requester when their request's status changes. Name the solution "sanity-<env>-<stamp>".
+> Build an internal "Vendor Onboarding & Purchase Request" system.
+> Entities: Vendor (name, category, country, status Draft/Under Review/Approved/Blocked, contact email, risk score 1-5), Purchase Request (title, vendor, department, amount, currency, needed-by date, justification, attachment file, status Submitted/Manager Approved/Finance Approved/Rejected), Approval Comment (request, author, text, timestamp), Department Budget (department, fiscal year, budget amount, spent amount), and Activity Log (entity, record, action, actor, timestamp).
+> Roles: Requester creates and views their own requests; Manager sees all requests of their department and approves or rejects with a mandatory comment; Finance sees Manager-Approved requests above 5000 and gives final approval; Admin manages vendors and budgets.
+> Rules: a request can only be submitted against an Approved vendor; a request is rejected automatically with a comment if it would push the department over budget; every status change writes an Activity Log row and sends an in-app notification to the requester; a request Manager-Approved for more than 3 days without Finance action is escalated with a notification to Finance.
+> Pages: vendor list with status and risk filters and search; vendor detail with its requests; request list with status, vendor and department filters; request detail with the attachment, the approval comment trail and the activity log; a bulk CSV import page for vendors; a dashboard with total approved amount this month, requests pending per status, budget used per department as a bar chart, and top 5 vendors by approved amount, with export to CSV.
+> Automations: a weekly digest listing pending requests per manager; the escalation rule above as a scheduled check.
+> Name the solution "sanity-<env>-<stamp>".
 
 Functional assertions on the generated app (all must hold):
 
-1. vendor list page loads and has a status filter;
+1. vendor list page loads and has status and risk filters;
 2. create a vendor `sanity vendor` with status Approved; it appears in the list;
-3. create a purchase request `sanity request`, amount 100, against that vendor; it appears with status Submitted;
+3. create a purchase request `sanity request`, amount 100, department Finance, against that vendor; it appears with status Submitted;
 4. a request against a Draft vendor is refused or not offered (create a second vendor in Draft and try);
-5. the request detail page shows a comment trail section;
-6. the dashboard page loads and shows the pending-per-status figure including the new request.
+5. the request detail page shows the attachment field, a comment trail section and an activity log with at least the "created" row;
+6. approve the request as Manager without a comment: refused; with a comment: status becomes Manager Approved and the activity log gains a row;
+7. the dashboard page loads, shows the pending-per-status figure including the new request, and has a budget-per-department chart;
+8. the solution contains two automations (weekly digest, escalation check), both present in its automation list.
 
 Procedure:
 
 1. Open `<base>/p/0/ai-teams/<teamId>` with `ua_probe.mjs`. Confirm the team page loads (not login, no `apiErrors`). **Discover** the prompt input selector for starting a new build; submit the fixed prompt with `fill` + `press Enter` (or the send button).
 2. Record the new session. Open `<base>/p/0/ai-teams/<teamId>/observability/sessions/all` and locate the session started in the last few minutes (`GetAllSessions` body pattern in `platform-api.md` once captured). Save its URL as evidence.
 3. Poll the session every 2 min with `ua_probe.mjs` (`text` on the trace list). Collect any step whose status is error, any text matching `error|exception|failed|timed out`, and the final session state.
-4. When the build completes, open the generated app (link from the session or the team's solutions list) and run the six functional assertions above with `ua_probe.mjs` actions. Record which ones passed in the note, e.g. `functional 5/6, failed: #4 draft-vendor guard`.
+4. When the build completes, open the generated app (link from the session or the team's solutions list) and run the eight functional assertions above with `ua_probe.mjs` actions. Record which ones passed in the note, e.g. `functional 7/8, failed: #4 draft-vendor guard`.
 5. Delete the solution (UI or API, **discover**). If deletion is not possible, say so in the note.
 
-PASS: build completed within budget, no error steps in the session trace, all six functional assertions true.
+PASS: build completed within budget, no error steps in the session trace, all eight functional assertions true.
 FAIL: build did not complete, or any error step in the trace, or any functional assertion false. Note must say which. The session URL is the primary evidence; an error step inside it is also a lead for ALERTS (same agent/knowledge/application may be failing elsewhere).
 
 ## FDE-UI: AI FDE copilot panel (the surface users actually see)
@@ -73,45 +85,55 @@ Acceptance per question (all three):
 
 PASS: both questions accepted. FAIL: either not. Quote the reply (first 40 lines) in the evidence.
 
-## WFB: Workflow Builder agent (understand, then make)
+## WFB: Workflow Builder agent (inside the automation editor)
 
-Budget: 15 min. Needs from inputs: the Workflow Builder agent id or URL, the Sanity project name or id, and the name of one existing automation in that project to explain (default: the one created by the previous sanity run if it still exists, else any automation the user names).
+Budget: 20 min. Agent id `e_6aa19955aeb9ea1371af57c7`; sessions `<base>/p/0/ai-agents/e_6aa19955aeb9ea1371af57c7/observability/sessions/all`.
+
+Needs from inputs: the URL of a **test automation** in the Sanity project that this check may modify (a permanent one, kept for sanity; it must not be a live automation). The Workflow Builder is used from inside that automation's editor, not as a standalone chat.
 
 Part A, understand:
 
-1. Open the Workflow Builder agent surface (**discover** the URL from the agent id; same patterns as the FDE: config page under `/p/0/ai-agents/<id>/...`, chat on `/test?chatId=new` or a copilot panel). Capture a screenshot.
-2. Ask: `Explain what the automation "<name>" in project "<Sanity project>" does: its trigger, each step in order, and what it changes.`
-3. Accept if the reply arrives within 4 min, names the trigger type and at least one step that really exists in that automation (verify against the automation's configuration page or entity), and contains no error text.
+1. Open the test automation's editor URL with `ua_probe.mjs`. Snapshot its definition: the node list (`text` on the canvas or the definition entity, **discover** which; sentinel reads automations as entityType `WorkflowDefinition` through `standard_entities_fetch_entities`). Screenshot.
+2. Open the Workflow Builder agent panel inside the editor (**discover** the button; record the selector).
+3. Ask: `Explain this automation: its trigger, each node in order, and what each node changes.`
+4. Ask one detail question that has a checkable answer, e.g. `What does the node "<second node name>" use as its input, and where does that value come from?`
+5. Accept Part A if both replies arrive within 4 min each, the explanation names the real trigger and every real node in order, the detail answer matches the node's configuration, and neither reply contains error text.
 
-Part B, make:
+Part B, make (one CRUD operation on the automation):
 
-4. Ask: `In project "<Sanity project>", create an automation named "sanity-<env>-<stamp>-wfb" with a scheduled trigger that runs daily at 09:00 IST and a single step that writes the text "sanity ok" to the run log. Do not add any other step and do not activate it.`
-5. Verify by API or UI (**discover** the automation entity type or the project's automation list) that an automation with that exact name now exists in the Sanity project, has a schedule trigger and one step, and is not active. Snapshot the project's automation list before step 4 and diff after: nothing else may have changed.
-6. Delete the created automation and confirm it is gone.
+6. Ask: `Add a new node after "<last node name>" that logs the text "sanity node ok". Do not change any existing node and do not activate or publish the automation.`
+7. Verify in the editor and in the definition that exactly one new node exists at the end, of a log type, with that text, and that every pre-existing node is unchanged (diff against the step 1 snapshot). The agent's own "done" message is not verification.
+8. Remove the added node (ask the agent `Remove the node you just added`, then verify; if the agent cannot, remove it in the editor) so the test automation is back to its snapshot. Confirm the diff is empty.
 
-PASS: both parts accepted, diff clean, cleanup confirmed.
-FAIL: a reply missing or wrong (Part A names steps that do not exist is a FAIL, not a soft pass), the automation not created as specified, anything else changed in the project, or an error. Evidence: the agent session link, the created automation's URL, the before/after diff.
-SKIPPED only if the user says the Workflow Builder is absent in this tenant.
+Parallel: the session-trace monitor from the common rules, on the Workflow Builder sessions page, for the whole check.
 
-## FDE-CRUD: AI FDE create, read, update, delete
+PASS: Part A accepted, the node added exactly as asked, nothing else changed, the automation restored, no error traces in this run's sessions.
+FAIL: a wrong or missing explanation (naming nodes that do not exist is a FAIL), the node not added or added wrongly, any other node changed, restore failed (say so, it is now a live change in the test automation), or an error trace. Evidence: the agent session URL from observability, before/after screenshots, the diff.
+SKIPPED only if the user says the Workflow Builder is absent in this tenant or no test automation exists.
 
-Budget: 15 min. Runs after FDE-QA on the same surface. Every object is created inside the Sanity project and named with the run stamp; the check diffs the project before and after so a wrong edit outside it is caught, not assumed.
+## FDE-CRUD: AI FDE create, read, update, delete on a test object and its records
 
-Default object: an automation (the FDE can scaffold one). If the first run shows the FDE cannot create automations, record in `platform-api.md` which object types it can create and switch the default to the simplest of them.
+Budget: 20 min. Runs after FDE-QA on the same surface. Every object is created inside the Sanity project and named with the run stamp; the check diffs the project's object list before and after so a wrong edit outside it is caught, not assumed.
 
-Queries, in order, each with a 4 min budget and the same reply-capture rules as FDE-QA:
+Default target: a **custom object with records** (the FDE's goal text says it acts on Storage objects). If the first run shows the FDE cannot create objects, record in `platform-api.md` what it can create and switch the default to that.
 
-| # | Query | Verify (API or UI, not the agent's word) |
+Queries, in order, each with a 4 min budget and the same reply-capture rules as FDE-QA. Verification is by API or UI (**discover** the object and record entity types; record them), never by the agent's word.
+
+| # | Query | Verify |
 |---|---|---|
-| C | `In project "<Sanity project>", create an automation named "sanity-<env>-<stamp>-fde" with a manual trigger and one step that logs "created by sanity". Do not activate it.` | the automation exists, manual trigger, one step, inactive |
-| R | `What does the automation "sanity-<env>-<stamp>-fde" in project "<Sanity project>" do?` | reply names the manual trigger and the log step |
-| U | `Rename the automation "sanity-<env>-<stamp>-fde" in project "<Sanity project>" to "sanity-<env>-<stamp>-fde-renamed" and set its description to "sanity update ok".` | name and description changed, nothing else changed |
-| D | `Delete the automation "sanity-<env>-<stamp>-fde-renamed" in project "<Sanity project>".` | the automation no longer exists |
+| C1 | `In project "<Sanity project>", create an object named "sanity_<stamp>" with fields: name (text), amount (number), status (text).` | object exists with the three fields |
+| C2 | `Add two records to "sanity_<stamp>": name "alpha", amount 10, status "open"; and name "beta", amount 20, status "closed".` | two records with those values |
+| R | `List all records of "sanity_<stamp>" with status "open".` | reply contains alpha only |
+| U | `Update the record named "alpha" in "sanity_<stamp>": set amount to 15 and status to "closed".` | alpha has amount 15, status closed; beta unchanged |
+| D1 | `Delete the record named "beta" from "sanity_<stamp>".` | one record left, alpha |
+| D2 | `Delete the object "sanity_<stamp>" and all its records.` | object gone |
 
 If the FDE asks for confirmation before a write, answer `Yes, proceed.` once; a second confirmation request counts as the step not completing.
 
-PASS: all four verified and the before/after diff of the Sanity project shows only the expected changes.
-FAIL: any step unverified, any change outside the named object, or any error. If the FDE refuses writes by design, report FAIL with the refusal text quoted; the user decides whether to reduce the check to read-only.
+Parallel: the session-trace monitor from the common rules, on the AI FDE sessions page, for FDE-QA and FDE-CRUD together.
+
+PASS: all six verified, the project's object list diff shows only the test object appearing and disappearing, no error traces in this run's sessions.
+FAIL: any step unverified, any change outside the test object, an error trace, or any error. If the FDE refuses writes by design, report FAIL with the refusal quoted; the user decides whether to reduce the check to read-only. If D2 fails, delete the object by API or UI and say so.
 
 ## EVAL: Evaluation create and run
 
@@ -135,13 +157,14 @@ Window: from `alert_since` until all of: `window_min` elapsed, all product check
 Tick every 5 minutes. Each tick:
 
 1. `slack_read_channel` on the alert channel with `oldest` = max(`alert_since`, ts of the last recorded alert). Ignore messages already in `state.json → alerts`. If the channel shows nothing new, that is a normal tick, not a problem; the poster may simply not have run yet.
-2. For each new failed-run alert: read its thread. Open the run or session link with `ua_probe.mjs`; capture `visibleText` of the failing step. Extract:
+2. Only **failed** runs count. A "Node In Progress" or still-running alert is not a failure: note it once in the tick's state as pending and report it only if the same run is still in progress 15 minutes later or turns into a failure. Do not post an alert reply for a run that is merely in progress (the 25 Nov run posted two of these; they were noise).
+3. For each new failed-run alert: read its thread. Open the run or session link with `ua_probe.mjs`; capture `visibleText` of the failing step. Extract:
    - automation / agent name and the failing node;
    - the exact error message;
    - the parent: which agent, knowledge base, application, connector or data source the failing node depends on (read the node's configuration or the trace input/output);
    - whether it was triggered by one of this run's product checks (the SB session, the EVAL experiment, an FDE question): match by asset name `sanity-<env>-<stamp>`, agent id or timestamp. Such a failure is also evidence for that check's verdict; tell the owning agent or fail the check yourself if it already passed.
    - whether the same error signature existed before the deploy. This is a lookup for classification only (`slack_search_public_and_private` on the signature, previous 24 h); the older alert itself is never reported.
-3. Classify: **deployment-suspect** (new signature after deploy time, or touches a product under sanity, or matches an error seen in SB/EVAL/FDE), or **pre-existing** (same signature before the deploy). When the cause cannot be determined, say "root cause TBD" and name what to check next; never invent one.
-4. Post one reply per new alert in the results thread (template in `slack-templates.md`), and record it.
+4. Classify: **deployment-suspect** (new signature after deploy time, or touches a product under sanity, or matches an error seen in SB/EVAL/FDE), or **pre-existing** (same signature before the deploy). When the cause cannot be determined, say "root cause TBD" and name what to check next; never invent one.
+5. Post one reply per new alert in the results thread (template in `slack-templates.md`), and record it.
 
 Verdict contribution: any deployment-suspect alert makes the final verdict ❌ even if the four product checks pass. Pre-existing alerts are listed in the final post but do not change the verdict.
