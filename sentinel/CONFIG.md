@@ -69,6 +69,10 @@ Every Sentinel automation id goes into the Notifier's `triggerInputCondition` so
 | sentinel · registry-sync | `6b0732b877940a61944d6d70` (deployed v2, callable; seeds the registry in 10 pages of 500; 4805 rows) |
 | sentinel · test-failure (test helper, must NOT be excluded) | `6b071bd0e61cdd44b6f30077` (deployed v0) |
 
+## State: ALL AUTOMATIONS PAUSED (26 Nov, on request, to limit platform load)
+
+Pause/resume: `POST https://finance.toc.tekioncloud.xyz/api/workflow-definition/{id}/pause` (toggle; needs the session cookie and `Origin` header), or the Running switch on the automation page. Resume order when restarting: notifier → grouper → poster → handlers; registry-sync, test-failure and the tools are callable and only run when called.
+
 ## Built so far
 
 | Asset | Id | Notes |
