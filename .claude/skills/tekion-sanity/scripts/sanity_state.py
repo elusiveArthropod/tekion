@@ -1,58 +1,35 @@
 #!/usr/bin/env python3
 """Run-state tracker for a Tekion sanity run. One JSON file per run, rendered for Slack.
 
-  sanity_state.py <state.json> init --env PRE-PROD --base-url URL --checks "SB,WFB,FDE-UI,FDE-QA,FDE-CRUD,EVAL,ALERTS" [--window-min 60]
-  sanity_state.py <state.json> set  <check> <status> ["note"] [--evidence URL]   status: PENDING RUNNING PASS FAIL AUTH_EXPIRED SKIPPED  (times render in IST)
+  sanity_state.py <state.json> init --env PRE-PROD --base-url URL --checks "SB,WB,FDE-UI,FDE-QA,FDE-CRUD,EVAL,ALERTS" [--window-min 60]
+  sanity_state.py <state.json> set  <check> <status> ["note"] [--evidence URL]   status: PENDING RUNNING PASS FAIL AUTH_EXPIRED SKIPPED
   sanity_state.py <state.json> slack-ts <ts>          remember the Slack root post ts
-  sanity_state.py <state.json> render [--plan|--progress|--final] [--max-chars 1500]
-        print a Slack-formatted message; over --max-chars it is split on line boundaries into parts
-        separated by a "=====PART n/N" line, each to be sent as its own reply, in order
+  sanity_state.py <state.json> alert add <ts> <deployment-suspect|pre-existing|tbd> "<name>"   record a reported alert
+  sanity_state.py <state.json> created add <check> "<what>" [--deleted yes|no]   record an asset the run created
+  sanity_state.py <state.json> render [--plan|--progress|--final]   print a Slack message (Markdown: **bold**, see slack-templates.md)
   sanity_state.py <state.json> remaining                print checks not yet in a terminal state
   sanity_state.py <state.json> alert-since              print the Slack ts to use as `oldest` for the alert channel
+
+Formatting rule (the team found the old output congested): one idea per line, a blank line
+between sections, bold labels, bullets for parallel items, no run-on paragraphs.
 """
 import json, sys, argparse, datetime as dt
 
 TERMINAL = {"PASS", "FAIL", "SKIPPED"}
 ICON = {"PENDING": "⬜", "RUNNING": "⏳", "PASS": "✅", "FAIL": "❌", "AUTH_EXPIRED": "⚠️", "SKIPPED": "⏭️"}
 LABEL = {
-    "SB": "Solution Builder — build the vendor onboarding + purchase request system, trace clean, 8 functional checks",
-    "WFB": "Workflow Builder agent — explain the test automation, add one node, remove it, traces clean",
-    "FDE-UI": "AI FDE — copilot panel opens with conversation starters",
-    "FDE-QA": "AI FDE — two platform how-to questions answered, traces clean",
-    "FDE-CRUD": "AI FDE — create a test object, add/update/delete records, delete it, traces clean",
-    "EVAL": "Evaluation — dataset + cases created, experiment run, scores present",
-    "ALERTS": "Alert channel — new failed runs since start, each with root cause",
+    "SB": "Solution Builder builds the vendor-invoice approval portal, session trace clean, app passes the functional script",
+    "WB": "Workflow Builder copilot explains an existing automation, then builds a new one from the fixed prompt",
+    "FDE-UI": "AI FDE copilot panel opens with its greeting and conversation starters",
+    "FDE-QA": "AI FDE answers two platform how-to questions",
+    "FDE-CRUD": "AI FDE creates, reads, updates and deletes a sanity dataset on request, verified through the API",
+    "EVAL": "Evaluation: dataset and cases created, experiment runs, scores present",
+    "ALERTS": "Alert channel: new automation failures since start, each with a root cause and a classification",
 }
-IST = dt.timezone(dt.timedelta(hours=5, minutes=30), "IST")
+DEFAULT_CHECKS = "SB,WB,FDE-UI,FDE-QA,FDE-CRUD,EVAL,ALERTS"
 
 def now():
-    return dt.datetime.now(IST).strftime("%d %b %Y, %H:%M IST")
-
-def hhmm(iso):
-    try:
-        return dt.datetime.fromisoformat(iso).astimezone(IST).strftime("%H:%M IST")
-    except Exception:
-        return iso
-
-PART_SEP = "=====PART"
-
-def split_parts(lines, max_chars):
-    """Split rendered lines into chunks under max_chars, on line boundaries only.
-    A continuation chunk starts with "(continued)" so it reads correctly as its own reply.
-    A single line longer than max_chars is truncated with an ellipsis; it should never happen with
-    the note length rule, but a truncated line is better than a Slack rejection at midnight."""
-    parts, cur = [], []
-    for line in lines:
-        if len(line) > max_chars - 1:
-            line = line[: max_chars - 2] + "…"
-        candidate = "\n".join(cur + [line])
-        if cur and len(candidate) > max_chars:
-            parts.append("\n".join(cur))
-            cur = ["_(continued)_", line]
-        else:
-            cur.append(line)
-    if cur: parts.append("\n".join(cur))
-    return parts
+    return dt.datetime.now(dt.timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M %Z")
 
 def load(p):
     with open(p) as f:
@@ -62,26 +39,33 @@ def save(p, s):
     with open(p, "w") as f:
         json.dump(s, f, indent=2)
 
+def section(title, items):
+    """Bold label on its own line, then bullets. Empty list -> nothing."""
+    if not items:
+        return []
+    return [f"**{title}**"] + [f"• {i}" for i in items] + [""]
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("state"); ap.add_argument("cmd"); ap.add_argument("rest", nargs="*")
     ap.add_argument("--env"); ap.add_argument("--base-url"); ap.add_argument("--checks")
     ap.add_argument("--window-min", type=int, default=60); ap.add_argument("--evidence")
-    ap.add_argument("--max-chars", type=int, default=1500, help="split rendered posts over this size on line boundaries")
+    ap.add_argument("--deleted", choices=["yes", "no"])
     ap.add_argument("--plan", action="store_true"); ap.add_argument("--progress", action="store_true"); ap.add_argument("--final", action="store_true")
     a = ap.parse_args()
 
     if a.cmd == "init":
-        checks = [c.strip() for c in (a.checks or "SB,WFB,FDE-UI,FDE-QA,FDE-CRUD,EVAL,ALERTS").split(",") if c.strip()]
+        checks = [c.strip() for c in (a.checks or DEFAULT_CHECKS).split(",") if c.strip()]
         started_iso = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
         s = {"env": a.env, "base_url": a.base_url, "started": now(), "started_iso": started_iso,
              "alert_since": started_iso, "alert_since_slack_ts": f"{dt.datetime.now(dt.timezone.utc).timestamp():.6f}",
              "window_min": a.window_min, "slack_ts": None,
              "checks": {c: {"status": "PENDING", "note": "", "evidence": [], "updated": now()} for c in checks},
-             "alerts": []}
+             "alerts": [], "created": []}
         save(a.state, s); print(f"initialised {len(checks)} checks"); return
 
     s = load(a.state)
+    s.setdefault("alerts", []); s.setdefault("created", [])
     if a.cmd == "set":
         check, status = a.rest[0], a.rest[1].upper()
         note = a.rest[2] if len(a.rest) > 2 else ""
@@ -92,54 +76,74 @@ def main():
         save(a.state, s); print(f"{check} -> {status}"); return
     if a.cmd == "slack-ts":
         s["slack_ts"] = a.rest[0]; save(a.state, s); return
+    if a.cmd == "alert":
+        # alert add <ts> <class> "<name>"
+        _, ts, cls, name = (a.rest + ["", "", "", ""])[:4]
+        cls = {"deployment-suspect": "deployment-suspect", "pre-existing": "pre-existing"}.get(cls, "tbd")
+        s["alerts"].append({"ts": ts, "class": cls, "name": name, "at": now()})
+        save(a.state, s); print(f"alert recorded ({cls}): {name}"); return
+    if a.cmd == "created":
+        # created add <check> "<what>" [--deleted yes|no]
+        _, check, what = (a.rest + ["", "", ""])[:3]
+        s["created"].append({"check": check, "what": what, "deleted": a.deleted == "yes"})
+        save(a.state, s); print(f"created recorded: {what}"); return
     if a.cmd == "alert-since":
         last = max([x.get("ts", "0") for x in s["alerts"]] + [s["alert_since_slack_ts"]]); print(last); return
     if a.cmd == "remaining":
         print("\n".join(k for k, v in s["checks"].items() if v["status"] not in TERMINAL)); return
     if a.cmd == "render":
-        # Standard markdown: the slack_send_message tool converts **bold**, _italic_, [label](url),
-        # > quotes and a `---` horizontal rule. Slack mrkdwn (*bold*, <url|label>) is NOT converted.
-        checks = s["checks"]
         lines = []
-        def check_line(k, v, with_status):
-            line = f"{ICON[v['status']]}  `{k}`"
-            if with_status: line += f"  **{v['status']}**"
-            else: line += f"  {LABEL.get(k, k)}"
-            if with_status and v["note"]: line += f" — {v['note']}"
-            if with_status and v["evidence"]: line += f" · [evidence]({v['evidence'][-1]})"
-            return line
+        checks = s["checks"]
         if a.plan:
-            lines += [f"🧪 **Tekion Platform Sanity — {s['env']}**",
-                      f"_Started {s['started']}_", "",
-                      f"**Target** {s['base_url']}",
-                      f"**Alert watch** from now · every 5 min · at least {s['window_min']} min, and 10 min past the last check", "",
-                      f"**Checks running in parallel ({len(checks)})**", ""]
-            lines += [check_line(k, v, False) for k, v in checks.items()]
-            lines += ["", "> Each check posts its result in this thread the moment it finishes.",
-                      "> If a credential expires mid-run, the affected check posts ⚠️ with what is still left."]
+            lines += [f"🧪 **Tekion platform sanity · {s['env']}**", f"Started {s['started']}", ""]
+            lines += section("Run", [
+                f"Target: <{s['base_url']}|{s['base_url'].split('//')[-1]}>",
+                f"{len(checks)} checks run in parallel; each one posts its own result in this thread the moment it finishes",
+                f"Alert watch: every 5 min, at least {s['window_min']} min, and at least 10 min past the last check",
+            ])
+            lines.append("**Checks**")
+            for i, (k, v) in enumerate(checks.items(), 1):
+                lines.append(f"{i}. {ICON[v['status']]} `{k}` · {LABEL.get(k, k)}")
+            lines += ["", "_If the session cookie expires mid-run, the affected check posts ⚠️ and lists what is left._"]
         else:
             done = sum(1 for v in checks.values() if v["status"] in TERMINAL)
             fails = [k for k, v in checks.items() if v["status"] == "FAIL"]
-            if fails: head = "❌ **SANITY FAILED"
-            elif done == len(checks): head = "✅ **SANITY PASSED"
-            else: head = "⏳ **SANITY IN PROGRESS"
-            lines += [f"{head} — {s['env']}**", f"_{done}/{len(checks)} checks finished · {now()}_", ""]
-            lines += [check_line(k, v, True) for k, v in checks.items()]
+            suspect = [x for x in s["alerts"] if x["class"] == "deployment-suspect"]
+            preex = [x for x in s["alerts"] if x["class"] == "pre-existing"]
+            tbd = [x for x in s["alerts"] if x["class"] == "tbd"]
             if a.final:
-                rem = [k for k, v in checks.items() if v["status"] not in TERMINAL]
-                sus = [x for x in s["alerts"] if x.get("classification") == "deployment-suspect"]
-                lines += ["", f"**Alert watch** {hhmm(s['alert_since'])} → {now()[-9:]} · {len(s['alerts'])} new failed run(s), {len(sus)} deployment-suspect",
-                          "_Alerts from before this run were intentionally not read._"]
-                if rem: lines += ["", f"**Not completed** {', '.join(rem)}"]
-        lines += ["", "---"]
-        parts = split_parts(lines, a.max_chars)
-        if len(parts) == 1:
-            print(parts[0])
-        else:
-            for i, part in enumerate(parts, 1):
-                if i > 1: print(f"\n{PART_SEP} {i}/{len(parts)}\n")
-                print(part)
-        return
+                verdict = "❌ **SANITY FAILED**" if (fails or suspect) else "✅ **SANITY PASSED**"
+            else:
+                verdict = "⏳ **SANITY IN PROGRESS**"
+            lines += [f"{verdict} · {s['env']}", f"{done}/{len(checks)} checks finished · {now()}", ""]
+
+            def row(k, v):
+                ev = f" · <{v['evidence'][-1]}|evidence>" if v["evidence"] else ""
+                note = f" · {v['note']}" if v["note"] else ""
+                return f"{ICON[v['status']]} `{k}`{note}{ev}"
+            lines += section("Failed", [row(k, v) for k, v in checks.items() if v["status"] == "FAIL"])
+            lines += section("Passed", [row(k, v) for k, v in checks.items() if v["status"] == "PASS"])
+            lines += section("Not finished" if a.final else "Still running",
+                             [row(k, v) for k, v in checks.items() if v["status"] not in TERMINAL])
+            lines += section("Skipped", [row(k, v) for k, v in checks.items() if v["status"] == "SKIPPED"])
+            alert_items = []
+            if suspect: alert_items.append(f"{len(suspect)} deployment-suspect: " + ", ".join(x["name"] for x in suspect))
+            if preex: alert_items.append(f"{len(preex)} pre-existing (verdict-neutral): " + ", ".join(x["name"] for x in preex))
+            if tbd: alert_items.append(f"{len(tbd)} root cause TBD: " + ", ".join(x["name"] for x in tbd))
+            if not alert_items: alert_items.append("none since start")
+            lines += section("New automation failures", alert_items)
+            if a.final:
+                kept = [c["what"] for c in s["created"] if not c["deleted"]]
+                gone = [c["what"] for c in s["created"] if c["deleted"]]
+                cleanup = []
+                if gone: cleanup.append("Deleted: " + ", ".join(gone))
+                if kept: cleanup.append("⚠️ Not deleted: " + ", ".join(kept))
+                if not cleanup: cleanup.append("nothing recorded")
+                lines += section("Cleanup", cleanup)
+                lines.append(f"_Alert watch covered {s['alert_since']} → {now()}. Older alerts are intentionally not shown._")
+        while lines and lines[-1] == "":
+            lines.pop()
+        print("\n".join(lines)); return
     sys.exit(f"unknown cmd {a.cmd}")
 
 if __name__ == "__main__":

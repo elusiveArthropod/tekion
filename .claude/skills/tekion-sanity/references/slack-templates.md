@@ -1,121 +1,115 @@
 # Slack message formats
 
-Channel: results channel (default `C0CLBMLJ10T`). The first message is the plan, rendered by `sanity_state.py render --plan`. Everything else is a reply in that thread. No model names.
+Channel: results channel (default `C0CLBMLJ10T`). First message is the plan, rendered by `sanity_state.py render --plan`. Everything else is a reply in that thread. Users as `<@U…>`. No model names.
 
-**Syntax: standard markdown, not Slack mrkdwn.** `slack_send_message` converts `**bold**`, `_italic_`, `` `code` ``, `[label](url)`, `>` quotes, lists, fenced code blocks and a `---` horizontal rule. Slack-native `*bold*` renders as italic and `<url|label>` is not converted, which is what made the 25 Nov posts look wrong. Users as `<@U…>`.
+## Formatting rules (the first run's posts were judged too congested)
 
-Formatting rules, learned from the first runs (the posts were too dense to scan at midnight):
+`slack_send_message` converts **Markdown** to Slack formatting. Verified from the 2026-11-25 thread: text sent as `*x*` rendered _italic_, so bold needs `**x**`. Write Markdown, not Slack mrkdwn.
 
-- **End every reply with a blank line and `---`.** That rule is the divider between consecutive replies in the thread; without it, replies run into each other.
-- One idea per line. A blank line between the headline, the detail, and the evidence.
-- Headline: icon, bold check id and status. Nothing else on that line.
-- Labels in bold, then the value: `**Session** [observability session](url)`.
-- Error text always in a fenced code block, trimmed to 40 lines. Never inline.
-- Links as `[label](url)`, never bare URLs longer than one line.
-- Per-check detail replies, alert replies and the paused/skipped replies carry one emoji, the status icon, and nothing decorative. The plan, progress and final posts are the exception: they carry one status icon per check line by design, because that column is what people scan.
-- Under 1500 characters per reply. `sanity_state.py render` enforces this for the plan, progress and final posts: over the cap it prints parts separated by a `=====PART n/N` line, and each part is sent as its own reply in order, never merged. For hand-written replies, move the code block or the evidence into a second reply.
-- Times in IST, `HH:MM IST`.
+1. **Headline first, on its own line**: status icon, check id in backticks, status word in bold, then one sentence that says what happened. Someone reading only this line must know the outcome.
+2. **Blank line between sections.** Never run two sections together.
+3. **Sections are a bold label on its own line, then bullets** (`- ` in Markdown, renders as •). Fixed labels, in this order, only the ones that apply: `**What was checked**`, `**What failed**`, `**Evidence**`, `**Error**`, `**Suspected area**`, `**Created / cleaned up**`, `**Next**`.
+4. **One idea per bullet, at most two sentences.** If a bullet needs a third sentence, it is two bullets.
+5. **Links are named**: `<url|Session>`, `<url|Run>`, `<url|Screenshot>`. Never a bare URL, never a bare `link`.
+6. **Error text goes in one fenced code block under `**Error**`, trimmed to 15 lines.** If there is more, upload the full text as a file to the thread (`slack_get_file_upload_url` → `slack_complete_file_upload`) and say "full text attached".
+7. **Numbers and ids stay out of prose**: put them in their bullet (`Q1 447 words`, `node 30 "Invalid model"`), not in the headline sentence.
+8. **Whole message under about 25 lines.** Longer than that means the analysis belongs in the evidence file, not in the post.
+9. Code spans only for check ids, asset names, node names and ids. Not for emphasis; bold is for emphasis.
+10. Nothing about how the result was reached, no hedging, no "it seems". Status, evidence, next action.
 
-## Check result (one reply per check, posted the moment it finishes)
+## Check result (one per check, posted the moment it finishes)
 
-PASS:
+PASS (short; two or three bullets of evidence are enough):
 
 ```
-✅ **FDE-UI — PASS**
+✅ `FDE-QA` **PASS** · both platform questions answered with the expected terms
 
-Copilot panel opens with the greeting and 3 conversation starters.
+**What was checked**
+- Q1 API connection how-to: 447 words, mentions connector, authentication, endpoint
+- Q2 daily 9 AM schedule: 254 words, mentions schedule, trigger, cron
 
-**Evidence** [screenshot](https://…) · 14:12 IST
-
----
+**Evidence**
+- <url|Copilot session>
 ```
 
 FAIL:
 
+````
+❌ `SB` **FAIL** · build finished but the Approvals page was never built
+
+**What failed**
+- Approvals page is empty with no data connections, so approve/reject and the approval history were not delivered
+- Functional script: 3 of 8 assertions failed (approve invoice, two-approval rule, dashboard total)
+
+**Evidence**
+- <url|Session> · <url|Screenshot>
+
+**Error**
 ```
-❌ **SB — FAIL**
-
-Build completed in 31 min, but the session trace has 2 error steps.
-Functional checks not run because the generated app did not load.
-
-**Session** [observability session](https://…)
-**Failing step** Generate data model
-
-```
-<first 40 lines of the error text>
-```
-
-**Suspected area** Solution Builder → data-model agent (knowledge call timed out)
-**Next** on-call to confirm whether the same error appears in the alert channel
-
----
+Invalid LLM model: modelId
+rejected modelId: e_69aeb0831adff145d2eb5885
 ```
 
-Upload the screenshot to the thread on FAIL (`slack_get_file_upload_url` → `slack_complete_file_upload`), as a separate reply right after the result.
+**Suspected area**
+- Shared `Call LLM (AI Agent)` automation rejects the model id used by the Solution Builder agents
+
+**Created / cleaned up**
+- Partial solution `sanity-preprod-finance-20261126-0210` deleted
+````
+
+Upload the screenshot to the thread on FAIL as a separate file post with a one-line caption.
 
 AUTH_EXPIRED:
 
 ```
-⚠️ **EVAL — PAUSED**
+⚠️ `EVAL` **PAUSED** · session cookie expired at step "run experiment"
 
-The API token expired at step "poll experiment runs".
-
-**Still to finish** EVAL, SB
-**Needed** a fresh token in the chat; nothing else is affected.
-
----
+**Next**
+- Remaining checks: `EVAL`, `SB`
+- Waiting for a fresh cookie in chat; nothing else is affected
 ```
 
 SKIPPED:
 
 ```
-⏭️ **WFB — SKIPPED**
-
-Workflow Builder agent is not present in this tenant (confirmed by <@U…>).
-
----
+⏭️ `EVAL` **SKIPPED** · Evaluation module not present in this tenant (confirmed by user)
 ```
 
-## New alert from the alert channel (one reply per failure)
+## New alert from the alert channel (one per failure)
 
+````
+🔔 **New failed run since deploy** · `<automation or agent name>` · node "<failing node>"
+
+**What failed**
+- <one sentence: which node, which parent it depends on>
+- <one sentence: whether one of this run's checks triggered it, and which>
+
+**Evidence**
+- <alert thread link|Alert> · <run link|Run>
+
+**Error**
 ```
-🔔 **New failed run — Load Case Sync**
-
-**Failing step** Session variable → Set case payload
-**Links** [alert thread](https://…) · [run](https://…)
-
-```
-<error message, trimmed>
+<error message, trimmed to 15 lines>
 ```
 
-**Depends on** agent `Case Extractor` → knowledge base `Tekion DMS docs`
-**Verdict** deployment-suspect — new error signature, first seen 14:20 IST
+**Classification**
+- **Deployment-suspect** · new signature, first seen HH:MM, touches <product under sanity>
+  or: **Pre-existing** · same error seen before deploy (<link|example>), verdict-neutral
+  or: **Root cause TBD** · next check: <what to look at>
+````
 
----
-```
+Several alerts with one root cause: one post, headline names the root cause, one bullet per affected automation under **What failed**. Do not post the same root cause five times.
 
-Only failed runs get this reply. "Node In Progress" alerts are not failures and are not posted unless the run is still in progress 15 minutes later.
+Alerts that are not failures (for example an "In Progress" alert): one short post, headline says "not a failed run", one bullet on why it is listed, classification line. No error block.
 
-Verdict wording, pick one:
-
-- `deployment-suspect — <why: new signature / touches deployed component / matches SB error>`
-- `pre-existing — same error seen before deploy (<link>)`
-- `triggered by this sanity run — <check id>, counted against that check`
-- `root cause TBD — next check: <what>`
-
-## Progress (only when the user asks, or after a resume)
+## Progress (only when the user asks, or after an AUTH_EXPIRED resume)
 
 `sanity_state.py render --progress`.
 
 ## Final (last reply; mention on-call only on ❌)
 
-`sanity_state.py render --final`, then two lines:
+`sanity_state.py render --final`. It already contains the verdict, the grouped check rows, the alert counts and the cleanup list (fed from `sanity_state.py ... created add` and `alert add` during the run). On ❌ append one line after a blank line:
 
 ```
-**Cleanup** deleted: solution, dataset, 2 test cases, experiment · not deleted: none
-<@oncall> decision needed: rollback or hotfix. Evidence is in this thread.
+<@oncall> decision needed: rollback or hotfix. Evidence is in the posts above.
 ```
-
-The renderer already ends the final post with `---`; put these two lines before it or send them as one more reply ending with `---`.
-
-The second line only on ❌.
