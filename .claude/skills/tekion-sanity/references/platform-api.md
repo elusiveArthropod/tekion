@@ -29,7 +29,8 @@ IDs look like `e_<24 hex>`; the UI puts them in `location.pathname`.
 ## Known URLs (Pre-prod finance tenant)
 
 - Base: `https://finance.toc.tekioncloud.xyz`
-- AI Teams (Solution Builder) team: `/p/0/ai-teams/e_69a84345925f136d9c9e437e`; sessions: `.../observability/sessions/all`
+- Solution Builder **agent** `e_6ab41262199edb6c386940ae` (corrected 2026-11-27): config `/p/0/ai-agents/e_6ab41262199edb6c386940ae/configuration/instructions`; sessions `/p/0/ai-agents/e_6ab41262199edb6c386940ae/observability/sessions/all`. User entry point `/p/0/solutions` → New solution; the solution page `/p/0/solutions/<id>/...` hosts clarifications, plan approval, progress and the generated UI. "New solution" control, prompt input and solution page layout: TBD (record on the next run).
+- AI Teams team `e_69a84345925f136d9c9e437e` (`/p/0/ai-teams/...`): the surface the 26 Nov runs used. Its chat and trace selectors below still describe that surface and may carry over to the agent's sessions page, but it is no longer the path the sanity uses.
 - FDE agent config: `/p/0/ai-agents/e_ai_fde_agent/configuration/instructions`; sessions: `/p/0/ai-agents/e_ai_fde_agent/observability/sessions/all`
 - Workflow Builder agent: `e_6aa19955aeb9ea1371af57c7` (entity name "Workflow Agent"); sessions: `/p/0/ai-agents/e_6aa19955aeb9ea1371af57c7/observability/sessions/all`. Used from inside an automation's editor; see WORKFLOW BUILDER below for the create flow and selectors.
 - Same ids on the Main tenant `https://platform.toc.tekioncloud.xyz` (team, FDE agent, Workflow Agent). The Answer Relevancy metric `e_6ae06cf9d4501754c758f443` does NOT exist on Main; `PS360 | Response Quality` `e_6b001fbe357994515aed8118` (SCALE) does.

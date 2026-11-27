@@ -29,7 +29,7 @@ Ask for all of these in one message; the user replies in one message. Defaults a
 | Browser session cookie (full `Cookie:` request header from DevTools → Network on any platform page) | yes | — used for every UI page and every `/api/*` call |
 | Alert channel (Slack link or id) where failed automation runs are posted | yes | — |
 | Results channel | no | `C0CLBMLJ10T` |
-| AI Teams team id (Solution Builder) | no | `e_69a84345925f136d9c9e437e` (same id across tenants) |
+| Solution Builder agent id | no | `e_6ab41262199edb6c386940ae` (started from `<base>/p/0/solutions` → New solution; traces on this agent's sessions) |
 | FDE agent id | no | `e_ai_fde_agent` (the user-facing surface is the `AI FDE` copilot panel in the top bar) |
 | Solution Builder prompt | no | the fixed prompt in `references/checks.md` |
 | FDE questions | no | the two in `references/checks.md` |
