@@ -89,33 +89,35 @@ PASS: both questions accepted. FAIL: either not. Quote the reply (first 40 lines
 
 Budget: 20 min. Agent id `e_6aa19955aeb9ea1371af57c7`; sessions `<base>/p/0/ai-agents/e_6aa19955aeb9ea1371af57c7/observability/sessions/all`.
 
-The Workflow Builder is used from inside an automation's editor, not as a standalone chat. The check creates its own automation to work on, so no existing automation is ever touched.
+The Workflow Builder is used from inside an automation's editor, not as a standalone chat. The check creates its own automation to work on, so no existing automation is ever touched. The editor flow, definition API and copilot selectors are recorded in `platform-api.md` (WORKFLOW BUILDER section); use them, do not rediscover. The 26 Nov run spent 20 of its 37 minutes on discovery and failed on budget for that reason.
+
+Node choice: there is no "Log" app in the node picker (search "Log" only matches Logik / Sumo Logic), so every step this check adds is a **Groovy code node** (app "Code by UnifyApps", action "Execute Groovy code"), which exists on every tenant.
 
 Setup:
 
-1. Create a new automation named `sanity-<env>-<stamp>-wfb` (UI "new automation" flow or the `WorkflowDefinition` entity, **discover** which and record it) with a manual trigger and two steps: a Log step writing "step one", then a Delay step of 1 second. Do not activate or publish it. Open its editor with `ua_probe.mjs`, snapshot the node list (`text` on the canvas or the definition entity), screenshot.
+1. Create a new automation named `sanity-<env>-<stamp>-wfb` (UI flow in `platform-api.md`) with an API (callable) trigger and two steps: a Groovy code step titled `step one` whose script is `return "step one"`, then a Delay step of 1 second (pick the `Seconds` option with `[role='option']:text-is('Seconds')`; `has-text` matches Milliseconds). Save. Do not activate or publish it. Snapshot the definition with `GET /api/workflow-definition/<id>` (nodes and edges) and screenshot the editor.
 
-Part A, understand:
+Part A, understand (one chat):
 
-2. Open the Workflow Builder agent panel inside the editor (**discover** the button; record the selector).
+2. Open the Workflow Builder copilot inside the editor (`button[aria-label='Copilot']`; URL gains `?b_9U8If-chatId=<id>&nav=copilot`).
 3. Ask: `Explain this automation: its trigger, each node in order, and what each node does.`
 4. Ask: `What does the Delay node wait for, and what runs before it?`
-5. Accept Part A if both replies arrive within 4 min each, the explanation names the manual trigger and both nodes in order, the detail answer says 1 second and names the Log step, and neither reply contains error text.
+5. Accept Part A if both replies arrive within 4 min each, the explanation names the API trigger and both nodes in order, the detail answer says 1 second and names the `step one` code node, and neither reply contains error text.
 
-Part B, make (one CRUD operation on the automation):
+Part B, make (one CRUD operation on the automation), **in a fresh chat**:
 
-6. Ask: `Add a new node after the Delay node that logs the text "sanity node ok". Do not change any existing node and do not activate or publish the automation.`
-7. Verify in the editor and in the definition that exactly one new node exists at the end, of a log type, with that text, and that the trigger and the two original nodes are unchanged (diff against the step 1 snapshot). The agent's own "done" message is not verification.
-8. Ask: `Remove the node you just added.` Verify the definition is back to the snapshot. If the agent cannot, note it; the whole automation is deleted next anyway.
+6. Reload the builder URL **without** the `chatId` parameter and open the copilot again so a new chat starts (the URL must show a different chatId than Part A). Never reuse the Part A chat here: on 26 Nov the resumed chat answered from the version-1 definition it had seen earlier and the check could not tell a stale read from chat memory. Ask: `Add a new Groovy code node after the Delay node whose script is return "sanity node ok". Do not change any existing node and do not activate or publish the automation.`
+7. Verify in the definition (`GET /api/workflow-definition/<id>`) and in the editor that exactly one new node exists at the end, of Groovy code type (`context.appName` code / `resourceName` groovy), with that script, and that the trigger and the two original nodes are unchanged (diff against the step 1 snapshot). The agent's own "done" message is not verification. If the agent describes a definition version older than the saved one (for example says there is no Delay node), that is a FAIL with the reply quoted: in a fresh chat it can only come from a stale definition read.
+8. In the same fresh chat ask: `Remove the node you just added.` Verify the definition is back to the snapshot. If the agent cannot, note it; the whole automation is deleted next anyway.
 
 Cleanup:
 
-9. Delete the automation and confirm it is gone.
+9. Delete the automation (`POST /api/workflow-definition/delete/<id>`) and confirm `GET` returns 404 or a 500 "not found".
 
 Parallel: the session-trace monitor from the common rules, on the Workflow Builder sessions page, for the whole check.
 
 PASS: automation created, Part A accepted, the node added exactly as asked with nothing else changed, no error traces in this run's sessions, automation deleted.
-FAIL: setup failed, a wrong or missing explanation (naming nodes that do not exist is a FAIL), the node not added or added wrongly, any original node changed, or an error trace. Removal failing in step 8 is a note, not a FAIL, since the automation is deleted. Deletion failing is a PASS with "not deleted: <url>" in the note. Evidence: the agent session URL from observability, before/after screenshots, the diff.
+FAIL: setup failed, a wrong or missing explanation (naming nodes that do not exist is a FAIL), the node not added or added wrongly, any original node changed, a stale definition described in the fresh Part B chat, or an error trace. Removal failing in step 8 is a note, not a FAIL, since the automation is deleted. Deletion failing is a PASS with "not deleted: <url>" in the note. Evidence: the agent session URLs from observability (Part A and Part B are two sessions), before/after screenshots, the diff.
 SKIPPED only if the user says the Workflow Builder is absent in this tenant.
 
 ## FDE-CRUD: AI FDE create, read, update, delete on a test object and its records
