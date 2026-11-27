@@ -4,34 +4,68 @@ Each check is run by its own subagent, in parallel. `<base>` is the platform URL
 
 Common rules:
 
-- API calls use the API token via `scripts/ua_api_hdr.sh` (`x-ua-at` header). Browser steps use the browser session cookie via `scripts/ua_probe.mjs`. They are different credentials; see `platform-api.md` → AUTH MECHANISM.
+- Browser steps use `scripts/ua_probe.mjs` and API calls use `scripts/ua_api.sh`, both with the browser session cookie. `scripts/ua_api_hdr.sh` with an `x-ua-at` token is the fallback only when the main session's verification step found the cookie refused by `/api/*`; the agent prompt says which applies.
 - Time budgets are hard. Exceeding one is FAIL with note "timed out after N min".
 - A login redirect or HTTP 401/403 at any step is AUTH_EXPIRED, not FAIL.
 - Every created asset is named `sanity-<env>-<YYYYMMDD-HHMM>` so it can be found and deleted.
 - Evidence on FAIL: screenshot path, the error text, the session or run URL.
+- **Parallel session-trace monitor.** Every agent-driven check (SB, WFB, FDE-QA, FDE-CRUD) also watches that agent's observability sessions while it runs and for 2 minutes after: poll the sessions page every 60 s with `ua_probe.mjs` (`text` on the session list, then open any session started by this run), and read each trace for error status or text matching `error|exception|failed|timed out|rate limit`. An error trace in a session this run created is a FAIL for that check with the trace URL as evidence, even if the chat reply looked fine. Error traces in sessions this run did not create are reported in the check's note as "other sessions failing: <n>, e.g. <url>" and handed to ALERTS. Sessions pages:
+  - Solution Builder agent: `<base>/p/0/ai-agents/e_6ab41262199edb6c386940ae/observability/sessions/all`
+  - Workflow Builder agent: `<base>/p/0/ai-agents/e_6aa19955aeb9ea1371af57c7/observability/sessions/all`
+  - AI FDE agent: `<base>/p/0/ai-agents/e_ai_fde_agent/observability/sessions/all`
 
 ## SB: Solution Builder (AI Teams)
 
-Budget: 30 min for the build, 5 min for the functional check.
+Budget: 60 min for the build, 15 min for the functional check.
 
-Fixed prompt (do not vary between runs unless the user overrides it, otherwise results are not comparable):
+Fixed prompt (do not vary between runs unless the user overrides it, otherwise results are not comparable). It is deliberately a medium-size system, not a single form, so that a regression in data modelling, relations, roles, workflow logic or dashboards shows up:
 
-> Build an internal expense reimbursement tracker. Employees submit an expense with title, amount, category (Travel, Meals, Equipment, Other), date and a note. Managers see a list of all expenses with a status filter (Submitted, Approved, Rejected) and can approve or reject each one with a comment. Show a summary card with the total approved amount. Name the solution "sanity-<env>-<stamp>".
+> Build an internal "Vendor Onboarding & Purchase Request" system.
+> Entities: Vendor (name, category, country, status Draft/Under Review/Approved/Blocked, contact email, risk score 1-5), Purchase Request (title, vendor, department, amount, currency, needed-by date, justification, attachment file, status Submitted/Manager Approved/Finance Approved/Rejected), Approval Comment (request, author, text, timestamp), Department Budget (department, fiscal year, budget amount, spent amount), and Activity Log (entity, record, action, actor, timestamp).
+> Roles: Requester creates and views their own requests; Manager sees all requests of their department and approves or rejects with a mandatory comment; Finance sees Manager-Approved requests above 5000 and gives final approval; Admin manages vendors and budgets.
+> Rules: a request can only be submitted against an Approved vendor; a request is rejected automatically with a comment if it would push the department over budget; every status change writes an Activity Log row and sends an in-app notification to the requester; a request Manager-Approved for more than 3 days without Finance action is escalated with a notification to Finance.
+> Pages: vendor list with status and risk filters and search; vendor detail with its requests; request list with status, vendor and department filters; request detail with the attachment, the approval comment trail and the activity log; a bulk CSV import page for vendors; a dashboard with total approved amount this month, requests pending per status, budget used per department as a bar chart, and top 5 vendors by approved amount, with export to CSV.
+> Automations: a weekly digest listing pending requests per manager; the escalation rule above as a scheduled check.
+> Name the solution "sanity-<env>-<stamp>". Prefix the technical name of every object you create with "sb<stamp>_" (for example sb<stamp>_vendor) so nothing collides with existing objects. If anything is ambiguous, choose sensible defaults and continue; do not ask clarifying questions.
 
-Procedure:
+Functional assertions on the generated app (all must hold):
 
-1. Open `<base>/p/0/ai-teams/<teamId>` with `ua_probe.mjs`. Confirm the team page loads (not login, no `apiErrors`). **Discover** the prompt input selector for starting a new build; submit the fixed prompt with `fill` + `press Enter` (or the send button).
-2. Record the new session. Open `<base>/p/0/ai-teams/<teamId>/observability/sessions/all` and locate the session started in the last few minutes (`GetAllSessions` body pattern in `platform-api.md` once captured). Save its URL as evidence.
-3. Poll the session every 2 min with `ua_probe.mjs` (`text` on the trace list). Collect any step whose status is error, any text matching `error|exception|failed|timed out`, and the final session state.
-4. When the build completes, open the generated app (link from the session or the team's solutions list). Functional check, via `ua_probe.mjs` actions:
-   - the app's main page loads with a list/table and a create action visible;
-   - create one expense (title `sanity check`, amount 12.5, category Travel);
-   - the new row appears in the list;
-   - the status filter exists.
-5. Delete the solution (UI or API, **discover**). If deletion is not possible, say so in the note.
+1. vendor list page loads and has status and risk filters;
+2. create a vendor `sanity vendor` with status Approved; it appears in the list;
+3. create a purchase request `sanity request`, amount 100, department Finance, against that vendor; it appears with status Submitted;
+4. a request against a Draft vendor is refused or not offered (create a second vendor in Draft and try);
+5. the request detail page shows the attachment field, a comment trail section and an activity log with at least the "created" row;
+6. approve the request as Manager without a comment: refused; with a comment: status becomes Manager Approved and the activity log gains a row;
+7. the dashboard page loads, shows the pending-per-status figure including the new request, and has a budget-per-department chart;
+8. the solution contains two automations (weekly digest, escalation check), both present in its automation list.
 
-PASS: build completed within budget, no error steps in the session trace, all four functional assertions true.
-FAIL: build did not complete, or any error step in the trace, or any functional assertion false. Note must say which. The session URL is the primary evidence; an error step inside it is also a lead for ALERTS (same agent/knowledge/application may be failing elsewhere).
+Where it lives (corrected 2026-11-27): Solution Builder is the **agent** `e_6ab41262199edb6c386940ae` (config `<base>/p/0/ai-agents/e_6ab41262199edb6c386940ae/configuration/instructions`). Users start it from `<base>/p/0/solutions` → **New solution**, and everything after that (clarifications, plan approval, build progress, follow-up prompts, the generated UI) happens **inside the solution's own page**. Backend calls and traces are on the agent's sessions: `<base>/p/0/ai-agents/e_6ab41262199edb6c386940ae/observability/sessions/all`. The AI Teams test chat (`/p/0/ai-teams/<teamId>/test`) used by the 26 Nov runs is not the user path; do not use it.
+
+Procedure (three phases, because a build runs 30 to 60 minutes and one subagent cannot wait that long: the 26 Nov run lost its SB agent at minute 23 with the build still running):
+
+Phase 1, start (subagent, returns within 10 min):
+
+1. Snapshot the tenant's storage object list (`platform-api.md` → STORAGE OBJECTS), the solutions list (`POST /api/entity/e_solution`, page limit 50) and the interfaces list (`POST /api/entity/e_interface`, filter name CONTAINS `sanity`) so cleanup knows what is new.
+2. Open `<base>/p/0/solutions` with `ua_probe.mjs`, click **New solution** (`text=New solution`; **discover** the exact control and whatever dialog follows, and record the path: it is the same path on every tenant and environment). Enter the fixed prompt in the solution's prompt input (**discover** the selector) and submit. Note the solution URL the page navigates to (`/p/0/solutions/<id>/...`); that id is the `e_solution`. Screenshot.
+3. Clarification turn, inside the solution page: if the builder asks questions, answer in plain text with `Use sensible defaults for everything and continue.` If the questions are not rendered, read them from the agent's latest session trace (`RequestClarification` leaf, Monaco model 0).
+4. Plan turn: wait for the plan and its approve control (`button:has-text('Approve')`), click it. The build starts. Find the matching session on the agent's sessions page (started in the last few minutes, first message = the prompt) and record its URL. Return: solution URL and id, session URL, start time, snapshots. Budget for two interventions; a third question is answered the same way once, then noted.
+
+Phase 2, poll (main session, every loop wakeup):
+
+5. UI and FE: open the solution page; capture `visibleText` and a screenshot; record the build stage it shows and any error banner or failed page.
+6. BE: open the agent session from phase 1 (sessions page → row → latest trace). Error steps carry `span.ua-typography.text-error-primary`; root status is in `p.text-utility-error-700` before "START"; `div.bg-utility-error-200` is a progress bar, not an error. Collect every error step with its node name and message.
+7. Completion = the solution page shows the built app (pages navigable) and the session's last trace ends with the summary. Post nothing on quiet ticks; post a ⏳ SB progress reply only when a new error step appears or at the 30 min mark.
+
+Phase 3, functional check and cleanup (subagent, launched when the build completes or the 60 min budget expires):
+
+8. Run the eight assertions **inside the solution page**, navigating its pages there (this is the user's own surface). If a page cannot be driven there, fall back to the interface builder `<base>/p/0/interfaces/<id>/builder/<pageSlug>` (interface id and page slugs from the `e_solution` / `e_interface` entities) and say so. The external runtime host is not reachable from the cloud container. Record true/false for every assertion; do not stop at the first failure.
+9. Classify each error step against `platform-api.md` → "Known platform defects". A known defect is reported as such in the note and still fails the check; a new signature is marked "new since <date>" and is the headline.
+10. Cleanup, in this order, and verify each: automations tagged "AI Generated" created after the start time (`POST /api/workflow-definition/delete/<id>`), the interface (`POST /api/entity/e_interface/delete/<id>`), the `e_solution` (`POST /api/entity/e_solution/delete/<id>`, or the Solutions page row menu), then the storage objects that were not in the step 1 snapshot (UI delete). Deleting a storage object leaves a tombstone on its id, which is why the prompt stamps object names; never delete an object whose name is not stamped with this run.
+
+PASS: build completed within budget, no error steps in the session trace, all eight functional assertions true.
+FAIL: build did not complete, or any error step in the trace, or any functional assertion false. Note must say which, and whether each error is a known defect or new. The session URL is the primary evidence; an error step inside it is also a lead for ALERTS (same agent/knowledge/application may be failing elsewhere).
+
+Cost note: the fixed prompt took about 30 min and roughly 41M tokens on 26 Nov. That is per deploy, per tenant.
 
 ## FDE-UI: AI FDE copilot panel (the surface users actually see)
 
@@ -68,6 +102,65 @@ Acceptance per question (all three):
 
 PASS: both questions accepted. FAIL: either not. Quote the reply (first 40 lines) in the evidence.
 
+## WFB: Workflow Builder agent (inside a throwaway automation's editor)
+
+Budget: 20 min. Agent id `e_6aa19955aeb9ea1371af57c7`; sessions `<base>/p/0/ai-agents/e_6aa19955aeb9ea1371af57c7/observability/sessions/all`.
+
+The Workflow Builder is used from inside an automation's editor, not as a standalone chat. The check creates its own automation to work on, so no existing automation is ever touched. The editor flow, definition API and copilot selectors are recorded in `platform-api.md` (WORKFLOW BUILDER section); use them, do not rediscover. The 26 Nov run spent 20 of its 37 minutes on discovery and failed on budget for that reason.
+
+Node choice: there is no "Log" app in the node picker (search "Log" only matches Logik / Sumo Logic), so every step this check adds is a **Groovy code node** (app "Code by UnifyApps", action "Execute Groovy code"), which exists on every tenant.
+
+Setup:
+
+1. Create a new automation named `sanity-<env>-<stamp>-wfb` (UI flow in `platform-api.md`) with an API (callable) trigger and two steps: a Groovy code step titled `step one` whose script is `return "step one"`, then a Delay step of 1 second (pick the `Seconds` option with `[role='option']:text-is('Seconds')`; `has-text` matches Milliseconds). Save. Do not activate or publish it. Snapshot the definition with `GET /api/workflow-definition/<id>` (nodes and edges) and screenshot the editor.
+
+Part A, understand (one chat):
+
+2. Open the Workflow Builder copilot inside the editor (`button[aria-label='Copilot']`; URL gains `?b_9U8If-chatId=<id>&nav=copilot`).
+3. Ask: `Explain this automation: its trigger, each node in order, and what each node does.`
+4. Ask: `What does the Delay node wait for, and what runs before it?`
+5. Accept Part A if both replies arrive within 4 min each, the explanation names the API trigger and both nodes in order, the detail answer says 1 second and names the `step one` code node, and neither reply contains error text.
+
+Part B, make (one CRUD operation on the automation), **in a fresh chat**:
+
+6. Reload the builder URL **without** the `chatId` parameter and open the copilot again so a new chat starts (the URL must show a different chatId than Part A). Never reuse the Part A chat here: on 26 Nov the resumed chat answered from the version-1 definition it had seen earlier and the check could not tell a stale read from chat memory. Ask: `Add a new Groovy code node after the Delay node whose script is return "sanity node ok". Do not change any existing node and do not activate or publish the automation.`
+7. Verify in the definition (`GET /api/workflow-definition/<id>`) and in the editor that exactly one new node exists at the end, of Groovy code type (`context.appName` code / `resourceName` groovy), with that script, and that the trigger and the two original nodes are unchanged (diff against the step 1 snapshot). The agent's own "done" message is not verification. If the agent describes a definition version older than the saved one (for example says there is no Delay node), that is a FAIL with the reply quoted: in a fresh chat it can only come from a stale definition read.
+8. In the same fresh chat ask: `Remove the node you just added.` Verify the definition is back to the snapshot. If the agent cannot, note it; the whole automation is deleted next anyway.
+
+Cleanup:
+
+9. Delete the automation (`POST /api/workflow-definition/delete/<id>`) and confirm `GET` returns 404 or a 500 "not found".
+
+Parallel: the session-trace monitor from the common rules, on the Workflow Builder sessions page, for the whole check.
+
+PASS: automation created, Part A accepted, the node added exactly as asked with nothing else changed, no error traces in this run's sessions, automation deleted.
+FAIL: setup failed, a wrong or missing explanation (naming nodes that do not exist is a FAIL), the node not added or added wrongly, any original node changed, a stale definition described in the fresh Part B chat, or an error trace. Removal failing in step 8 is a note, not a FAIL, since the automation is deleted. Deletion failing is a PASS with "not deleted: <url>" in the note. Evidence: the agent session URLs from observability (Part A and Part B are two sessions), before/after screenshots, the diff.
+SKIPPED only if the user says the Workflow Builder is absent in this tenant.
+
+## FDE-CRUD: AI FDE create, read, update, delete on a test object and its records
+
+Budget: 20 min. Runs after FDE-QA on the same surface. The check creates its own object, named with the run stamp, and only ever refers to it by that name; it snapshots the tenant's object list before and after so an edit to anything else is caught, not assumed.
+
+Default target: a **custom object with records** (the FDE's goal text says it acts on Storage objects). If the first run shows the FDE cannot create objects, record in `platform-api.md` what it can create and switch the default to that.
+
+Queries, in order, each with a 4 min budget and the same reply-capture rules as FDE-QA. Verification is by API or UI (**discover** the object and record entity types; record them), never by the agent's word.
+
+| # | Query | Verify |
+|---|---|---|
+| C1 | `Create an object named "sanity_<stamp>" with fields: name (text), amount (number), status (text).` | object exists with the three fields |
+| C2 | `Add two records to "sanity_<stamp>": name "alpha", amount 10, status "open"; and name "beta", amount 20, status "closed".` | two records with those values |
+| R | `List all records of "sanity_<stamp>" with status "open".` | reply contains alpha only |
+| U | `Update the record named "alpha" in "sanity_<stamp>": set amount to 15 and status to "closed".` | alpha has amount 15, status closed; beta unchanged |
+| D1 | `Delete the record named "beta" from "sanity_<stamp>".` | one record left, alpha |
+| D2 | `Delete the object "sanity_<stamp>" and all its records.` | object gone |
+
+If the FDE asks for confirmation before a write, answer `Yes, proceed.` once; a second confirmation request counts as the step not completing.
+
+Parallel: the session-trace monitor from the common rules, on the AI FDE sessions page, for FDE-QA and FDE-CRUD together.
+
+PASS: all six verified, the object list diff shows only the test object appearing and disappearing, no error traces in this run's sessions.
+FAIL: any step unverified, any change outside the test object, an error trace, or any error. If the FDE refuses writes by design, report FAIL with the refusal quoted; the user decides whether to reduce the check to read-only. If D2 fails, delete the object by API or UI and say so.
+
 ## EVAL: Evaluation create and run
 
 Budget: 15 min. Uses the verified entity API in `platform-api.md`.
@@ -90,13 +183,14 @@ Window: from `alert_since` until all of: `window_min` elapsed, all product check
 Tick every 5 minutes. Each tick:
 
 1. `slack_read_channel` on the alert channel with `oldest` = max(`alert_since`, ts of the last recorded alert). Ignore messages already in `state.json → alerts`. If the channel shows nothing new, that is a normal tick, not a problem; the poster may simply not have run yet.
-2. For each new failed-run alert: read its thread. Open the run or session link with `ua_probe.mjs`; capture `visibleText` of the failing step. Extract:
+2. Only **failed** runs count. A "Node In Progress" or still-running alert is not a failure: note it once in the tick's state as pending and report it only if the same run is still in progress 15 minutes later or turns into a failure. Do not post an alert reply for a run that is merely in progress (the 25 Nov run posted two of these; they were noise).
+3. For each new failed-run alert: read its thread. Open the run or session link with `ua_probe.mjs`; capture `visibleText` of the failing step. Extract:
    - automation / agent name and the failing node;
    - the exact error message;
    - the parent: which agent, knowledge base, application, connector or data source the failing node depends on (read the node's configuration or the trace input/output);
    - whether it was triggered by one of this run's product checks (the SB session, the EVAL experiment, an FDE question): match by asset name `sanity-<env>-<stamp>`, agent id or timestamp. Such a failure is also evidence for that check's verdict; tell the owning agent or fail the check yourself if it already passed.
    - whether the same error signature existed before the deploy. This is a lookup for classification only (`slack_search_public_and_private` on the signature, previous 24 h); the older alert itself is never reported.
-3. Classify: **deployment-suspect** (new signature after deploy time, or touches a product under sanity, or matches an error seen in SB/EVAL/FDE), or **pre-existing** (same signature before the deploy). When the cause cannot be determined, say "root cause TBD" and name what to check next; never invent one.
-4. Post one reply per new alert in the results thread (template in `slack-templates.md`), and record it.
+4. Classify: **deployment-suspect** (new signature after deploy time, or touches a product under sanity, or matches an error seen in SB/EVAL/FDE), or **pre-existing** (same signature before the deploy). When the cause cannot be determined, say "root cause TBD" and name what to check next; never invent one.
+5. Post one reply per new alert in the results thread (template in `slack-templates.md`), and record it.
 
 Verdict contribution: any deployment-suspect alert makes the final verdict ❌ even if the four product checks pass. Pre-existing alerts are listed in the final post but do not change the verdict.
