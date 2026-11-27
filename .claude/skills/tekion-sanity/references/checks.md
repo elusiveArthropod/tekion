@@ -26,7 +26,7 @@ Fixed prompt (do not vary between runs unless the user overrides it, otherwise r
 > Rules: a request can only be submitted against an Approved vendor; a request is rejected automatically with a comment if it would push the department over budget; every status change writes an Activity Log row and sends an in-app notification to the requester; a request Manager-Approved for more than 3 days without Finance action is escalated with a notification to Finance.
 > Pages: vendor list with status and risk filters and search; vendor detail with its requests; request list with status, vendor and department filters; request detail with the attachment, the approval comment trail and the activity log; a bulk CSV import page for vendors; a dashboard with total approved amount this month, requests pending per status, budget used per department as a bar chart, and top 5 vendors by approved amount, with export to CSV.
 > Automations: a weekly digest listing pending requests per manager; the escalation rule above as a scheduled check.
-> Name the solution "sanity-<env>-<stamp>".
+> Name the solution "sanity-<env>-<stamp>". Prefix the technical name of every object you create with "sb<stamp>_" (for example sb<stamp>_vendor) so nothing collides with existing objects. If anything is ambiguous, choose sensible defaults and continue; do not ask clarifying questions.
 
 Functional assertions on the generated app (all must hold):
 
@@ -39,16 +39,30 @@ Functional assertions on the generated app (all must hold):
 7. the dashboard page loads, shows the pending-per-status figure including the new request, and has a budget-per-department chart;
 8. the solution contains two automations (weekly digest, escalation check), both present in its automation list.
 
-Procedure:
+Procedure (three phases, because a build runs 30 to 60 minutes and one subagent cannot wait that long: the 26 Nov run lost its SB agent at minute 23 with the build still running):
 
-1. Open `<base>/p/0/ai-teams/<teamId>` with `ua_probe.mjs`. Confirm the team page loads (not login, no `apiErrors`). **Discover** the prompt input selector for starting a new build; submit the fixed prompt with `fill` + `press Enter` (or the send button).
-2. Record the new session. Open `<base>/p/0/ai-teams/<teamId>/observability/sessions/all` and locate the session started in the last few minutes (`GetAllSessions` body pattern in `platform-api.md` once captured). Save its URL as evidence.
-3. Poll the session every 2 min with `ua_probe.mjs` (`text` on the trace list). Collect any step whose status is error, any text matching `error|exception|failed|timed out`, and the final session state.
-4. When the build completes, open the generated app (link from the session or the team's solutions list) and run the eight functional assertions above with `ua_probe.mjs` actions. Record which ones passed in the note, e.g. `functional 7/8, failed: #4 draft-vendor guard`.
-5. Delete the solution (UI or API, **discover**). If deletion is not possible, say so in the note.
+Phase 1, start (subagent, returns within 10 min):
+
+1. Snapshot the tenant's storage object list (`platform-api.md` → STORAGE OBJECTS) and the interfaces list (`POST /api/entity/e_interface`, filter name CONTAINS `sanity`) so cleanup knows what is new.
+2. Open the team chat directly: `<base>/p/0/ai-teams/<teamId>/test?b_RurcA-chatId=new` (the Preview click trips a false AUTH_EXPIRED). Input `div[contenteditable='true'][role='textbox']`, `fill` the prompt, `press Enter`. The URL becomes `…chatId=<sessionId>`; that is the observability session id. Record it.
+3. Clarification turn: the builder usually asks questions even when told not to, and they are not rendered in the chat. Read them via the last `[aria-label='View message trace']` → leaf `RequestClarification` → Monaco model 0 (`monaco.editor.getModels()[0]`), answer in plain text with `Use sensible defaults for everything and continue.`
+4. Plan turn: wait for "Application Plan" and `button:has-text('Approve')` (about 15 s after the answer), click it. The build trace starts. Return: session id, session URL, start time, snapshots. Budget for both interventions; a third question is answered the same way once, then noted.
+
+Phase 2, poll (main session, every loop wakeup):
+
+5. Open `<base>/p/0/ai-teams/<teamId>/observability/sessions/<sessionId>` (or the session row → latest trace). Error steps carry `span.ua-typography.text-error-primary`; root status is in `p.text-utility-error-700` before "START"; `div.bg-utility-error-200` is a progress bar, not an error. Collect every error step with its node name and message. Completion = the chat ends with a summary ("Design Choices" / "Notes"); there is no app link in chat.
+6. Post nothing on quiet ticks. Post a ⏳ SB progress reply only when a new error step appears or at the 30 min mark.
+
+Phase 3, functional check and cleanup (subagent, launched when the build completes or the 60 min budget expires):
+
+7. Find the interface: id `e-<sessionHex>` (hex of the session id), overview `<base>/p/0/interfaces/<id>/overview`. The app runtime host `https://<interfaceId>-<tenant>.toc.tekioncloud.xyz` is not reachable from the cloud container, so run the eight assertions on the in-platform surface: `<base>/p/0/interfaces/<id>/builder/<pageSlug>` renders each page with live data (page slugs from `properties.navigation.primary[]`). Record true/false for every assertion; do not stop at the first failure.
+8. Classify each error step against `platform-api.md` → "Known platform defects". A known defect is reported as such in the note and still fails the check; a new signature is marked "new since <date>" and is the headline.
+9. Cleanup, in this order, and verify each: automations tagged "AI Generated" created after the start time (`POST /api/workflow-definition/delete/<id>`), the interface (`POST /api/entity/e_interface/delete/<id>`), the `e_solution` (`POST /api/entity/e_solution/delete/<id>`), then the storage objects that were not in the step 1 snapshot (UI delete, `platform-api.md`). Deleting a storage object leaves a tombstone on its id, which is why the prompt stamps object names; never delete an object whose name is not stamped with this run.
 
 PASS: build completed within budget, no error steps in the session trace, all eight functional assertions true.
-FAIL: build did not complete, or any error step in the trace, or any functional assertion false. Note must say which. The session URL is the primary evidence; an error step inside it is also a lead for ALERTS (same agent/knowledge/application may be failing elsewhere).
+FAIL: build did not complete, or any error step in the trace, or any functional assertion false. Note must say which, and whether each error is a known defect or new. The session URL is the primary evidence; an error step inside it is also a lead for ALERTS (same agent/knowledge/application may be failing elsewhere).
+
+Cost note: the fixed prompt took about 30 min and roughly 41M tokens on 26 Nov. That is per deploy, per tenant.
 
 ## FDE-UI: AI FDE copilot panel (the surface users actually see)
 

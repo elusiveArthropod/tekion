@@ -63,7 +63,7 @@ The ALERTS "since" marker is the moment the user provided the inputs; `init` sto
 
 ### 2. Launch the checks in parallel
 
-Launch one `Agent` (subagent_type `general-purpose`, `run_in_background: true`) per product check, all in a single message: `SB`, `WFB`, `FDE-UI`, `EVAL`, and one agent that runs `FDE-QA` then `FDE-CRUD` in sequence (same chat surface, and CRUD must not interleave with the questions). Keep `ALERTS` in the main session (it is cheap Slack reading and it needs to loop).
+Launch one `Agent` (subagent_type `general-purpose`, `run_in_background: true`) per product check, all in a single message: `SB` phase 1 only (start the build and return the session id), `WFB`, `FDE-UI`, `EVAL`, and one agent that runs `FDE-QA` then `FDE-CRUD` in sequence (same chat surface, and CRUD must not interleave with the questions). A subagent does not survive a 30 to 60 min build, so the main session polls the SB session on every wakeup (phase 2 in `references/checks.md`) and launches the SB phase 3 agent when the build completes or its budget expires. Keep `ALERTS` in the main session (it is cheap Slack reading and it needs to loop).
 
 `WFB` and `FDE-CRUD` write to the tenant, but only to assets they create themselves and name with the run stamp (a throwaway automation, a throwaway object). They never touch an existing automation or object, and they delete what they made. No project or automation input is needed for them.
 
@@ -84,9 +84,10 @@ Mark each check RUNNING in the state file as you launch it.
 The alert channel is fed by an automation that posts failed runs **every 5 minutes**, so a failure caused by a product check shows up to 5 minutes after it happened. Right after launching, do the first ALERTS tick (procedure in `references/checks.md`), then call `ScheduleWakeup` with `delaySeconds` 300 and the prompt `continue tekion-sanity loop`. On every wakeup:
 
 1. Read `slack_read_channel` on the alert channel, messages with ts newer than `alert_since` and newer than the last one already recorded. For each **new** failed-run alert: open its thread, open the run link with `ua_probe.mjs`, extract the failing node and the error text, find the parent (which agent, knowledge base, application or connector the node belongs to), and judge whether it is plausibly caused by the deployment (new error signature, started after deploy time, touches the deployed component) or pre-existing noise. Post one thread reply per new failure in the results thread, format in the templates file, and append it to `state.json` under `alerts` as `{"ts": <slack ts>, "name": <automation>, "classification": "deployment-suspect" | "pre-existing" | "sanity-triggered" | "tbd"}` so the final post can count them. Do not re-report an alert already recorded.
-2. If a subagent finished (its result arrived), make sure its Slack post exists; if the agent crashed without posting, post the FAIL yourself with its error.
-3. If any check reported AUTH_EXPIRED: post the ⚠️ message listing remaining checks and ask the user in chat for a fresh cookie. On receiving it, overwrite the cookie file, verify it, relaunch only the unfinished checks.
-4. Schedule the next wakeup: 300 s while checks are running or the window is open; `noop: true` when nothing changed.
+2. SB phase 2: poll the build session; when it is complete or past budget, launch the phase 3 agent (functional check, classification, cleanup).
+3. If a subagent finished (its result arrived), make sure its Slack post exists; if the agent crashed without posting, post the FAIL yourself with its error.
+4. If any check reported AUTH_EXPIRED: post the ⚠️ message listing remaining checks and ask the user in chat for a fresh cookie. On receiving it, overwrite the cookie file, verify it, relaunch only the unfinished checks.
+5. Schedule the next wakeup: 300 s while checks are running or the window is open; `noop: true` when nothing changed.
 
 The loop ends when **all** of:
 
