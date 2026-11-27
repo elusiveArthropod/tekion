@@ -1,4 +1,4 @@
-import { and, appEvent, automation, eq, exists, op, startsWith, stop, TRIGGER } from "@ua/automations";
+import { appEvent, automation, eq, op, stop } from "@ua/automations";
 
 const SLACK = "6b07126be1098f3f51e57be4";
 const RECORD_ANSWER = "6b07c39977940a619451d4da";
@@ -8,19 +8,14 @@ export default automation(
     name: "sentinel · button-handler",
     description: "Sentinel Flow B (buttons): when someone clicks an answer button on a Sentinel post in #sentinel-finance, records the answer through tool-record-answer and confirms in the thread. Tag: alert-monitoring.",
     settings: { enableRunLogging: true, enableNodeLevelLogging: true, enableVariableLogging: true },
-    trigger: appEvent("slack", "slack_on_button_click", {
-      triggerInputCondition: and(
-        eq(TRIGGER.channel.id, "C0CKNN7U4M9"),
-        startsWith(TRIGGER.actions[0].action_id, "sentinel_"),
-      ),
-    }, { connectionId: SLACK }),
+    trigger: appEvent("slack", "slack_on_button_click", {}, { connectionId: SLACK }),
   },
   (t) => {
     // Which Issue does this message belong to?
     const post = op("storage_by_unifyapps", "storage_by_unifyapps_fetch_records", {
       object_type: "sentinel_slack_post",
       numberOfRecordsToFetch: "MULTIPLE",
-      triggerInputCondition: eq("properties_ts", t.container.message_ts),
+      triggerInputCondition: eq("properties_ts", t.message.ts),
       page: { paginateBy: "OFFSET", limit: 1, offset: 0 },
     });
 
@@ -41,10 +36,14 @@ export default automation(
         "def P = (binding.hasVariable('post') && post instanceof List && post && post[0] instanceof Map) ? (post[0].properties ?: [:]) : [:]",
         "def issueId = (P.issueId ?: valueId ?: '').toString()",
         "def cont = (ev.container instanceof Map) ? ev.container : [:]",
-        "def threadTs = (cont.thread_ts ?: cont.message_ts ?: '').toString()",
+        "def msgTs = (ev.message instanceof Map && ev.message.ts) ? ev.message.ts.toString() : (cont.message_ts ?: '').toString()",
+        "def threadTs = (cont.thread_ts ?: msgTs ?: '').toString()",
         "def channel = (ev.channel instanceof Map && ev.channel.id) ? ev.channel.id.toString() : ((cont.channel_id ?: 'C0CKNN7U4M9').toString())",
-        "def map = [sentinel_expected: 'expected', sentinel_known: 'known', sentinel_working: 'working', sentinel_needs_devs: 'needs_devs', sentinel_fixed: 'fixed', sentinel_not_sure: 'not_sure']",
-        "def answer = map[actionId] ?: ''",
+        "// action_id is <handler automation id>_<n>: the platform routes the click to this automation by that prefix; n says which button",
+        "def byIndex = ['1': 'expected', '2': 'known', '3': 'working', '4': 'needs_devs', '5': 'fixed', '6': 'not_sure']",
+        "def mm = (actionId =~ /_(\\d+)$/); def answer = mm.find() ? (byIndex[mm.group(1)] ?: '') : ''",
+        "def label = ((a0.text instanceof Map) ? (a0.text.text ?: '') : '').toString().toLowerCase()",
+        "if (!answer) { if (label.contains('expected')) answer = 'expected' else if (label.contains('known')) answer = 'known' else if (label.contains('worked') || label.contains('working')) answer = 'working' else if (label.contains('dev')) answer = 'needs_devs' else if (label.contains('fixed')) answer = 'fixed' else if (label.contains('not sure')) answer = 'not_sure' }",
         "def u = (ev.user instanceof Map) ? ev.user : [:]",
         "def needsDetail = answer in ['known', 'working']",
         "def prompt = answer == 'known' ? 'Recorded as known. Reply in this thread with the Atlas link so I can attach it.' : (answer == 'working' ? 'Recorded as being worked on. Reply with the date it should be fixed by (yyyy-mm-dd); until then I stay silent (3 days if no date).' : '')",

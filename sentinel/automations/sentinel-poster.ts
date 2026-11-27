@@ -113,12 +113,12 @@ export default automation(
               { type: "header", text: { type: "plain_text", text: msg.result.headline, emoji: true } },
               { type: "section", text: { type: "mrkdwn", text: msg.result.body } },
               { type: "actions", block_id: "sentinel_answer", elements: [
-                { type: "button", text: { type: "plain_text", text: "Expected", emoji: true }, action_id: "sentinel_expected", value: msg.result.issueId },
-                { type: "button", text: { type: "plain_text", text: "Known · tracked", emoji: true }, action_id: "sentinel_known", value: msg.result.issueId },
-                { type: "button", text: { type: "plain_text", text: "Being worked on", emoji: true }, action_id: "sentinel_working", value: msg.result.issueId },
-                { type: "button", text: { type: "plain_text", text: "Needs devs", emoji: true }, action_id: "sentinel_needs_devs", value: msg.result.issueId, style: "primary" },
-                { type: "button", text: { type: "plain_text", text: "Fixed", emoji: true }, action_id: "sentinel_fixed", value: msg.result.issueId },
-                { type: "button", text: { type: "plain_text", text: "Not sure", emoji: true }, action_id: "sentinel_not_sure", value: msg.result.issueId },
+                { type: "button", text: { type: "plain_text", text: "Expected", emoji: true }, action_id: "6b07c40fe61cdd44b6fbaf40_1", value: msg.result.issueId },
+                { type: "button", text: { type: "plain_text", text: "Known · tracked", emoji: true }, action_id: "6b07c40fe61cdd44b6fbaf40_2", value: msg.result.issueId },
+                { type: "button", text: { type: "plain_text", text: "Being worked on", emoji: true }, action_id: "6b07c40fe61cdd44b6fbaf40_3", value: msg.result.issueId },
+                { type: "button", text: { type: "plain_text", text: "Needs devs", emoji: true }, action_id: "6b07c40fe61cdd44b6fbaf40_4", value: msg.result.issueId, style: "primary" },
+                { type: "button", text: { type: "plain_text", text: "Fixed", emoji: true }, action_id: "6b07c40fe61cdd44b6fbaf40_5", value: msg.result.issueId },
+                { type: "button", text: { type: "plain_text", text: "Not sure", emoji: true }, action_id: "6b07c40fe61cdd44b6fbaf40_6", value: msg.result.issueId },
               ] },
             ],
           }, { connectionId: SLACK });
